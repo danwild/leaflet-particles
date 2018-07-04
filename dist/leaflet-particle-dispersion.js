@@ -1,278 +1,192 @@
 'use strict';
 
-/*
- Generic  Canvas Layer for leaflet 0.7 and 1.0-rc,
- copyright Stanislav Sumbera,  2016 , sumbera.com , license MIT
- originally created and motivated by L.CanvasOverlay  available here: https://gist.github.com/Sumbera/11114288
+L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
- */
+	// particle data indices
+	_pidIndex: 0,
+	_pLatIndex: 1,
+	_pLonIndex: 0,
+	_pDepthIndex: 2,
+	_pAgeIndex: 3,
 
-// -- L.DomUtil.setTransform from leaflet 1.0.0 to work on 0.0.7
-//------------------------------------------------------------------------------
-if (!L.DomUtil.setTransform) {
+	// misc
+	_featureGroup: null,
+	_frameIndex: 0,
+	_markers: [],
+	_colors: null,
 
-	L.DomUtil.setTransform = function (el, offset, scale) {
-		var pos = offset || new L.Point(0, 0);
+	/*------------------------------------ LEAFLET SPECIFIC ------------------------------------------*/
 
-		el.style[L.DomUtil.TRANSFORM] = (L.Browser.ie3d ? 'translate(' + pos.x + 'px,' + pos.y + 'px)' : 'translate3d(' + pos.x + 'px,' + pos.y + 'px,0)') + (scale ? ' scale(' + scale + ')' : '');
-	};
-}
-
-// -- support for both  0.0.7 and 1.0.0 rc2 leaflet
-L.CanvasLayer = (L.Layer ? L.Layer : L.Class).extend({
-	// -- initialized is called on prototype
-	initialize: function initialize(options) {
-		this._map = null;
-		this._canvas = null;
-		this._frame = null;
-		this._delegate = null;
-		L.setOptions(this, options);
-	},
-
-	delegate: function delegate(del) {
-		this._delegate = del;
-		return this;
-	},
-
-	needRedraw: function needRedraw() {
-		if (!this._frame) {
-			this._frame = L.Util.requestAnimFrame(this.drawLayer, this);
-		}
-		return this;
-	},
-
-	//-------------------------------------------------------------
-	_onLayerDidResize: function _onLayerDidResize(resizeEvent) {
-		this._canvas.width = resizeEvent.newSize.x;
-		this._canvas.height = resizeEvent.newSize.y;
-	},
-	//-------------------------------------------------------------
-	_onLayerDidMove: function _onLayerDidMove() {
-		var topLeft = this._map.containerPointToLayerPoint([0, 0]);
-		L.DomUtil.setPosition(this._canvas, topLeft);
-		this.drawLayer();
-	},
-	//-------------------------------------------------------------
-	getEvents: function getEvents() {
-		var events = {
-			resize: this._onLayerDidResize,
-			moveend: this._onLayerDidMove
-		};
-		if (this._map.options.zoomAnimation && L.Browser.any3d) {
-			events.zoomanim = this._animateZoom;
-		}
-
-		return events;
-	},
-	//-------------------------------------------------------------
-	onAdd: function onAdd(map) {
-		this._map = map;
-		this._canvas = L.DomUtil.create('canvas', 'leaflet-layer');
-		this.tiles = {};
-
-		var size = this._map.getSize();
-		this._canvas.width = size.x;
-		this._canvas.height = size.y;
-
-		var animated = this._map.options.zoomAnimation && L.Browser.any3d;
-		L.DomUtil.addClass(this._canvas, 'leaflet-zoom-' + (animated ? 'animated' : 'hide'));
-
-		map._panes.overlayPane.appendChild(this._canvas);
-		map.on(this.getEvents(), this);
-
-		var del = this._delegate || this;
-		del.onLayerDidMount && del.onLayerDidMount(); // -- callback
-		this.needRedraw();
-
-		var self = this;
-		setTimeout(function () {
-			self._onLayerDidMove();
-		}, 0);
-	},
-
-	//-------------------------------------------------------------
-	onRemove: function onRemove(map) {
-		var del = this._delegate || this;
-		del.onLayerWillUnmount && del.onLayerWillUnmount(); // -- callback
-
-
-		map.getPanes().overlayPane.removeChild(this._canvas);
-
-		map.off(this.getEvents(), this);
-
-		this._canvas = null;
-	},
-
-	//------------------------------------------------------------
-	addTo: function addTo(map) {
-		map.addLayer(this);
-		return this;
-	},
-	// --------------------------------------------------------------------------------
-	LatLonToMercator: function LatLonToMercator(latlon) {
-		return {
-			x: latlon.lng * 6378137 * Math.PI / 180,
-			y: Math.log(Math.tan((90 + latlon.lat) * Math.PI / 360)) * 6378137
-		};
-	},
-
-	//------------------------------------------------------------------------------
-	drawLayer: function drawLayer() {
-		// -- todo make the viewInfo properties  flat objects.
-		var size = this._map.getSize();
-		var bounds = this._map.getBounds();
-		var zoom = this._map.getZoom();
-
-		var center = this.LatLonToMercator(this._map.getCenter());
-		var corner = this.LatLonToMercator(this._map.containerPointToLatLng(this._map.getSize()));
-
-		var del = this._delegate || this;
-		del.onDrawLayer && del.onDrawLayer({
-			layer: this,
-			canvas: this._canvas,
-			bounds: bounds,
-			size: size,
-			zoom: zoom,
-			center: center,
-			corner: corner
-		});
-		this._frame = null;
-	},
-	// -- L.DomUtil.setTransform from leaflet 1.0.0 to work on 0.0.7
-	//------------------------------------------------------------------------------
-	_setTransform: function _setTransform(el, offset, scale) {
-		var pos = offset || new L.Point(0, 0);
-
-		el.style[L.DomUtil.TRANSFORM] = (L.Browser.ie3d ? 'translate(' + pos.x + 'px,' + pos.y + 'px)' : 'translate3d(' + pos.x + 'px,' + pos.y + 'px,0)') + (scale ? ' scale(' + scale + ')' : '');
-	},
-
-	//------------------------------------------------------------------------------
-	_animateZoom: function _animateZoom(e) {
-		var scale = this._map.getZoomScale(e.zoom);
-		// -- different calc of offset in leaflet 1.0.0 and 0.0.7 thanks for 1.0.0-rc2 calc @jduggan1
-		var offset = L.Layer ? this._map._latLngToNewLayerPoint(this._map.getBounds().getNorthWest(), e.zoom, e.center) : this._map._getCenterOffset(e.center)._multiplyBy(-scale).subtract(this._map._getMapPanePos());
-
-		L.DomUtil.setTransform(this._canvas, offset, scale);
-	}
-});
-
-L.canvasLayer = function () {
-	return new L.CanvasLayer();
-};
-L.VelocityLayer = (L.Layer ? L.Layer : L.Class).extend({
-
+	// user options
 	options: {
-		data: null
+		data: null,
+		displayMode: null,
+		startFrameIndex: 0,
+		ageColorScale: null,
+		ageDomain: null
 	},
 
 	_map: null,
-	_canvasLayer: null,
-	_context: null,
+	// the L.canvas renderer
+	_renderer: null,
+	// the DOM leaflet-pane that contains html canvas
+	_pane: null,
 
 	initialize: function initialize(options) {
 		L.setOptions(this, options);
 	},
 
+
+	/**
+  * Initialise renderer when layer is added to the map / becomes active,
+  * and draw circle markers if user has specified the displayMode
+  *
+  * @param map {Object} Leaflet map
+  */
 	onAdd: function onAdd(map) {
-		// create canvas, add overlay control
-		this._canvasLayer = L.canvasLayer().delegate(this);
-		this._canvasLayer.addTo(map);
+
+		console.log('options');
+		console.log(this);
+		console.log(this.options);
+
 		this._map = map;
+
+		if (this.options.hasOwnProperty('startFrameIndex')) this._frameIndex = this.options.startFrameIndex;
+		this.options.ageColorScale = this.options.ageColorScale || ['green', 'yellow', 'red'];
+		this.options.ageDomain = this.options.ageDomain || null;
+
+		this._createRenderer();
+
+		if (this.options.displayMode) this.setDisplayMode(this.options.displayMode);
 	},
 
-	onRemove: function onRemove(map) {
-		this._destroyLayer();
+
+	/**
+  * Remove the pane from DOM, and void renderer when layer removed from map
+  */
+	onRemove: function onRemove() {
+		L.DomUtil.remove(this._pane);
+		this._renderer = null;
+		this._featureGroup = null;
 	},
 
+
+	/*------------------------------------ PUBLIC ------------------------------------------*/
+
+	/**
+  * Update the layer with new data
+  * @param data
+  */
 	setData: function setData(data) {
 		this.options.data = data;
-
-		//if (this._windy) {
-		//	this._windy.setData(data);
-		//	this._clearAndRestart();
-		//}
-		//
-		//this.fire('load');
 	},
 
-	/*------------------------------------ PRIVATE ------------------------------------------*/
 
-	onDrawLayer: function onDrawLayer(overlay, params) {
-		//var self = this;
-		//
-		//if (!this._windy) {
-		//	this._initWindy(this);
-		//	return;
-		//}
-		//
-		//if (!this.options.data) {
-		//	return;
-		//}
-		//
-		//if (this._timer) clearTimeout(self._timer);
-		//
-		//this._timer = setTimeout(function () {
-		//	self._startWindy();
-		//}, 750); // showing velocity is delayed
+	/**
+  * Set the display mode of the layer
+  * @param mode {string} One of: ['FINAL', 'EXPOSURE', 'KEYFRAME']
+  */
+	setDisplayMode: function setDisplayMode(mode) {
+
+		console.log('setDisplayMode: ' + mode);
+
+		this.options.displayMode = mode;
+
+		switch (this.options.displayMode) {
+
+			case 'EXPOSURE':
+				this._initDisplayExposure();
+				break;
+
+			case 'FINAL':
+				this._initDisplayFinal();
+				break;
+
+			case 'KEYFRAME':
+				this._initDisplayKeyframe();
+				break;
+
+			default:
+				console.error('Attempted to initialise with invalid displayMode: ' + this.options.displayMode);
+				break;
+		}
 	},
+	setFrameIndex: function setFrameIndex(index) {
 
-	_startWindy: function _startWindy() {
-		var bounds = this._map.getBounds();
-		var size = this._map.getSize();
+		console.log('setFrameIndex: ' + index);
 
-		// bounds, width, height, extent
-		this._windy.start([[0, 0], [size.x, size.y]], size.x, size.y, [[bounds._southWest.lng, bounds._southWest.lat], [bounds._northEast.lng, bounds._northEast.lat]]);
-	},
+		var self = this;
+		self._frameIndex = index;
 
-	_initWindy: function _initWindy(self) {
+		var keys = Object.keys(self.options.data);
+		var frame = self.options.data[keys[index]];
 
-		// windy object, copy options
-		var options = Object.assign({ canvas: self._canvasLayer._canvas }, self.options);
-		this._windy = new Windy(options);
+		// there's no addLayer*s* function, either need to add each
+		// L.circleMarker individually, or reinit the entire layer
+		if (self._featureGroup) self._featureGroup.clearLayers();
 
-		// prepare context global var, start drawing
-		this._context = this._canvasLayer._canvas.getContext('2d');
-		this._canvasLayer._canvas.classList.add("velocity-overlay");
-		this.onDrawLayer();
+		for (var i = 0; i < frame.length; i++) {
 
-		this._map.on('dragstart', self._windy.stop);
-		this._map.on('dragend', self._clearAndRestart);
-		this._map.on('zoomstart', self._windy.stop);
-		this._map.on('zoomend', self._clearAndRestart);
-		this._map.on('resize', self._clearWind);
+			var particle = frame[i];
+			var pos = self._map.wrapLatLng([particle[self._pLatIndex], particle[self._pLonIndex]]);
 
-		this._initMouseHandler();
-	},
+			var marker = L.circleMarker(pos, {
+				renderer: self._renderer,
+				stroke: false,
+				fillOpacity: 0.3,
+				radius: 8,
+				fillColor: this._colors(particle[self._pAgeIndex]).hex(),
+				_feature: particle
 
-	_initMouseHandler: function _initMouseHandler() {
-		if (!this._mouseControl && this.options.displayValues) {
-			var options = this.options.displayOptions || {};
-			options['leafletVelocity'] = this;
-			this._mouseControl = L.control.velocity(options).addTo(this._map);
+				// would be more efficient to have single tooltip for featureGroup..
+			}).bindTooltip('I love to parti-cle..', { sticky: true });
+
+			self._markers.push(marker);
+			self._featureGroup.addLayer(marker);
 		}
 	},
 
-	_clearAndRestart: function _clearAndRestart() {
-		if (this._context) this._context.clearRect(0, 0, 3000, 3000);
-		if (this._windy) this._startWindy();
+
+	/*------------------------------------ PRIVATE ------------------------------------------*/
+
+	_createRenderer: function _createRenderer() {
+		// create separate pane for canvas renderer
+		this._pane = this._map.createPane('particle-dispersion');
+		this._renderer = L.canvas({ pane: 'particle-dispersion' });
 	},
 
-	_clearWind: function _clearWind() {
-		if (this._windy) this._windy.stop();
-		if (this._context) this._context.clearRect(0, 0, 3000, 3000);
-	},
 
-	_destroyLayer: function _destroyLayer() {
-		//if (this._timer) clearTimeout(this._timer);
-		//if (this._windy) this._windy.stop();
-		//if (this._context) this._context.clearRect(0, 0, 3000, 3000);
-		//if (this._mouseControl) this._map.removeControl(this._mouseControl);
-		//this._mouseControl = null;
-		//this._windy = null;
-		//this._map.removeLayer(this._canvasLayer);
+	/**
+  * @summary Create a chroma-js color scale with user settings or auto scaled to keyframe range
+  * @returns {Object} chromaJs color object
+  * @private
+  */
+	_createColors: function _createColors() {
+		if (!this.options.ageDomain) this.options.ageDomain = [0, Object.keys(this.options.data).length];
+		this._colors = chroma.scale(this.options.ageColorScale).domain(this.options.ageDomain);
+		return this._colors;
+	},
+	_initDisplayFinal: function _initDisplayFinal() {
+		this._createColors();
+	},
+	_initDisplayExposure: function _initDisplayExposure() {
+		this._createColors();
+	},
+	_initDisplayKeyframe: function _initDisplayKeyframe() {
+
+		if (this.options.data) {
+			// init the feature group and display first frame
+			this._createColors();
+			this._featureGroup = L.featureGroup();
+			this._markers = [];
+			this.setFrameIndex(this._frameIndex);
+			this._featureGroup.addTo(this._map);
+		} else {
+			console.error('Attempted to display keyframes but there is no data.');
+		}
 	}
 });
 
-L.velocityLayer = function (options) {
-	return new L.VelocityLayer(options);
+L.particleDispersionLayer = function (options) {
+	return new L.ParticleDispersionLayer(options);
 };
