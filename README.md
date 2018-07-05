@@ -12,10 +12,15 @@ Creates a custom leaflet layer with display modes:
   - use key frames to facilitate animation of particle positions over time
   - displays circles at particle locations, colored by their age
 
-## install
+## todo
+- unify color scale options for diff displayModes
+- better parameterisation of styling, options
 
+## install
 Assuming you have node and npm installed:
-`npm install leaflet-particle-dispersion --save`
+```bash
+npm install leaflet-particle-dispersion --save
+`
 
 ## dependencies
 This plugin depends on [chroma-js](https://github.com/gka/chroma.js),

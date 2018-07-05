@@ -8,7 +8,7 @@ const cssNano       = require('gulp-cssnano');
 
 // Concatenate & Minify src and dependencies
 gulp.task('scripts', function(done) {
-	gulp.src([
+	return gulp.src([
 			'src/js/**.js'
 		])
 		.pipe(concat('leaflet-particle-dispersion.js'))
@@ -19,12 +19,11 @@ gulp.task('scripts', function(done) {
 		.pipe(rename('leaflet-particle-dispersion.min.js'))
 		.pipe(uglify())
 		.pipe(gulp.dest('dist'));
-	done();
 });
 
 // bundle deps for standalone dist
 gulp.task('bundle', gulp.series('scripts', function(done) {
-	gulp.src([
+	return gulp.src([
 			'dist/leaflet-particle-dispersion.js',
 			'node_modules/chroma-js/chroma.js',
 			'node_modules/leaflet.heat/dist/leaflet-heat.js'
@@ -34,28 +33,25 @@ gulp.task('bundle', gulp.series('scripts', function(done) {
 		.pipe(rename('leaflet-particle-dispersion-standalone.min.js'))
 		.pipe(uglify())
 		.pipe(gulp.dest('dist'));
-	done();
 }));
 
-gulp.task('concatCss', function (done) {
-	gulp.src('./src/css/L.ParticleDispersionLayer.css')
+gulp.task('concatCss', function () {
+	return gulp.src('./src/css/*.css')
 		.pipe(concatCss('leaflet-particle-dispersion.css'))
 		.pipe(gulp.dest('./dist'));
-	done();
 });
 
-gulp.task('cssNano', gulp.series('concatCss', function(done) {
-	gulp.src('./dist/leaflet-particle-dispersion.css')
+gulp.task('cssNano', function() {
+	return gulp.src('dist/leaflet-particle-dispersion.css')
 		.pipe(cssNano())
 		.pipe(rename({suffix: '.min'}))
 		.pipe(gulp.dest('./dist'));
-	done();
-}));
+});
 
 // Watch Files For Changes
 gulp.task('watch', function(done) {
 	// We watch both JS and HTML files.
-	gulp.watch('src/js/*.js', gulp.series('scripts'));
+	gulp.watch('src/js/*.js', gulp.series('scripts', 'bundle'));
 	gulp.watch('src/css/*.css', gulp.series('concatCss', 'cssNano'));
 	done();
 });
