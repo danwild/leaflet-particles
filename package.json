@@ -28,7 +28,7 @@
 	"license": "MIT",
 	"dependencies": {
 		"chroma-js": "^1.3.4",
-		"moment": "^2.18.1"
+		"leaflet.heat": "^0.2.0"
 	},
 	"devDependencies": {
 		"babel-preset-es2015": "^6.9.0",

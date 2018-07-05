@@ -1,11 +1,29 @@
 # leaflet-particle-dispersion [![NPM version][npm-image]][npm-url] [![NPM Downloads][npm-downloads-image]][npm-url]
 
-Visualise dispersion of particles on a leaflet map, uses L.CircleMarkers rendered with L.Canvas.
+Visualise dispersion of particles on a leaflet map.
 
 Creates a custom leaflet layer with display modes:
-- **Final particle distribution:** Final downstream (source) or upstream (sink) percentages
-- **Cumulative exposure:** Percentage passing through cell from an upstream source or to a downstream sink
-- **Animation:** use key frames to facilitate animation of particle positions over time
+- **Final particle distribution:**
+  - final downstream (source) or upstream (sink) percentages
+- **Cumulative exposure:**
+  - percentage passing through cell from an upstream source or to a downstream sink
+  - displays a heat-map of total exposure
+- **Animation:**
+  - use key frames to facilitate animation of particle positions over time
+  - displays circles at particle locations, colored by their age
+
+## install
+
+Assuming you have node and npm installed:
+`npm install leaflet-particle-dispersion --save`
+
+## dependencies
+This plugin depends on [chroma-js](https://github.com/gka/chroma.js),
+and [leaflet.heat](https://github.com/Leaflet/Leaflet.heat).
+
+To use this plugin, you either need to:
+ - load these dependencies yourself (prior to loading `leaflet-particle-dispersion`); or
+ - use the standalone version with dependencies bundled, in `dist/leaflet-particle-dispersion-standalone.js`
 
 ## use and options
 
@@ -61,11 +79,6 @@ const data = {
   ],
   "2017-03-02T02:00:00.000Z": [...]
 ```
-
-
-## layer states
-Layer can have a display mode
-
 
 ## License
 MIT License (MIT)

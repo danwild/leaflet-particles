@@ -8,7 +8,7 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	_pAgeIndex:   3,
 
 	// misc
-	_featureGroup: null,
+	_particleLayer: null,
 	_frameIndex:   0,
 	_markers:      [],
 	_colors:       null,
@@ -63,7 +63,7 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	onRemove () {
 		L.DomUtil.remove(this._pane);
 		this._renderer = null;
-		this._featureGroup = null;
+		this._particleLayer = null;
 	},
 
 	/*------------------------------------ PUBLIC ------------------------------------------*/
@@ -118,7 +118,7 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 		// there's no addLayer*s* function, either need to add each
 		// L.circleMarker individually, or reinit the entire layer
-		if (self._featureGroup) self._featureGroup.clearLayers();
+		if (self._particleLayer) self._particleLayer.clearLayers();
 
 		for (let i = 0; i < frame.length; i++) {
 
@@ -137,7 +137,7 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 			}).bindTooltip(`I love to parti-cle..`, { sticky: true });
 
 			self._markers.push(marker);
-			self._featureGroup.addLayer(marker);
+			self._particleLayer.addLayer(marker);
 		}
 	},
 
@@ -147,6 +147,11 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		// create separate pane for canvas renderer
 		this._pane = this._map.createPane('particle-dispersion');
 		this._renderer = L.canvas({ pane: 'particle-dispersion' });
+	},
+
+	_clearDisplay () {
+		if (this._particleLayer) this._map.removeLayer(this._particleLayer);
+		this._particleLayer = null;
 	},
 
 	/**
@@ -161,22 +166,60 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	},
 
 	_initDisplayFinal () {
+		this._clearDisplay();
 		this._createColors();
 	},
 
+	/**
+	 * Process data into expected leaflet.heat format:
+	 * [ [lat, lon, intensity], ... ]
+	 * @private
+	 */
+	_createHeatmapData () {
+
+		let heatData = [];
+		let keys = Object.keys(this.options.data);
+		let maxAge = Object.keys(this.options.data).length;
+
+		keys.forEach((key) => {
+			this.options.data[key].forEach((particle) => {
+				heatData.push([
+					particle[this._pLatIndex],         // lat
+					particle[this._pLonIndex],         // lon
+					particle[this._pAgeIndex] / maxAge // scaled age
+				]);
+			});
+		});
+
+		return heatData;
+	},
+
 	_initDisplayExposure () {
-		this._createColors();
+		this._clearDisplay();
+
+		if (this.options.data){
+			this._createColors();
+
+			let heatData = this._createHeatmapData();
+
+			console.log(heatData);
+
+			this._particleLayer = L.heatLayer(heatData, { radius: 15 });
+			this._particleLayer.addTo(this._map);
+		}
 	},
 
 	_initDisplayKeyframe () {
 
+		this._clearDisplay();
+
 		if (this.options.data){
 			// init the feature group and display first frame
 			this._createColors();
-			this._featureGroup = L.featureGroup();
+			this._particleLayer = L.featureGroup();
 			this._markers = [];
 			this.setFrameIndex(this._frameIndex);
-			this._featureGroup.addTo(this._map);
+			this._particleLayer.addTo(this._map);
 		} else {
 			console.error('Attempted to display keyframes but there is no data.')
 		}

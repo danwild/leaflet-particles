@@ -22,6 +22,21 @@ gulp.task('scripts', function(done) {
 	done();
 });
 
+// bundle deps for standalone dist
+gulp.task('bundle', gulp.series('scripts', function(done) {
+	gulp.src([
+			'dist/leaflet-particle-dispersion.js',
+			'node_modules/chroma-js/chroma.js',
+			'node_modules/leaflet.heat/dist/leaflet-heat.js'
+		])
+		.pipe(concat('leaflet-particle-dispersion-standalone.js'))
+		.pipe(gulp.dest('dist'))
+		.pipe(rename('leaflet-particle-dispersion-standalone.min.js'))
+		.pipe(uglify())
+		.pipe(gulp.dest('dist'));
+	done();
+}));
+
 gulp.task('concatCss', function (done) {
 	gulp.src('./src/css/L.ParticleDispersionLayer.css')
 		.pipe(concatCss('leaflet-particle-dispersion.css'))
@@ -46,4 +61,4 @@ gulp.task('watch', function(done) {
 });
 
 // Default Task
-gulp.task('default', gulp.series('scripts', 'concatCss', 'cssNano', 'watch'));
+gulp.task('default', gulp.series('scripts', 'bundle', 'concatCss', 'cssNano', 'watch'));
