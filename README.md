@@ -38,19 +38,19 @@ const mode = 'FINAL';
 const particleLayer = L.particleDispersionLayer({
 
   // an array of keyframes, default: null
-  data:            data,
+  data: data,
 
   // one of: 'FINAL', 'EXPOSURE', 'KEYFRAME', default: null
-  displayMode:     mode,
+  displayMode: mode,
 
   // which keyframe should display on init, default: 0
   startFrameIndex: 0,
 
   // the colors to use in chroma-js scale, default: (shown below)
-  ageColorScale:   ['green', 'yellow', 'red'],
+  ageColorScale: ['green', 'yellow', 'red'],
 
   // the domain to fit the ageColorScale, default: keyframe length
-  ageDomain:       [0, 100]
+  ageDomain: [0, 100]
 
 });
 
@@ -65,6 +65,15 @@ particleLayer.setDisplayMode('KEYFRAME');
 // when in keyframe mode, set active frame like:
 particleLayer.setFrameIndex(index);
 ```
+
+## public methods
+
+|method|params|description|
+|---|---|---|
+|`isActive`||check if the particle layer is currently active on the map|
+|`setData`|`data: {Object}`|update the layer with new data|
+|`setDisplayMode`|`mode: {String}`|one of: `FINAL`, `EXPOSURE`, `KEYFRAME`|
+|`setFrameIndex`|`index: {Number}`|display the particles at the given frame index|
 
 ## data format
 

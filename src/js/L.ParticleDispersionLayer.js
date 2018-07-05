@@ -23,12 +23,13 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	// user options
 	options: {
 		data:            null,
-		displayMode:     null,
+		displayMode:     '',
 		startFrameIndex: 0,
 		ageColorScale:   null,
 		ageDomain:       null
 	},
 
+	_active: false,
 	_map:      null,
 	// the L.canvas renderer
 	_renderer: null,
@@ -47,8 +48,9 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	 */
 	onAdd (map) {
 
+		this._active = true;
+
 		console.log('options');
-		console.log(this);
 		console.log(this.options);
 
 		this._map = map;
@@ -66,12 +68,22 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	 * Remove the pane from DOM, and void renderer when layer removed from map
 	 */
 	onRemove () {
+		this._map.removeLayer(this._particleLayer);
 		L.DomUtil.remove(this._pane);
 		this._renderer = null;
 		this._particleLayer = null;
+		this._active = false;
 	},
 
 	/*------------------------------------ PUBLIC ------------------------------------------*/
+
+	/**
+	 * check if the particle layer is currently active on the map
+	 * @returns {boolean}
+	 */
+	isActive () {
+		return this._active;
+	},
 
 	/**
 	 * Update the layer with new data
@@ -79,6 +91,7 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	 */
 	setData (data) {
 		this.options.data = data;
+		this.setDisplayMode(this.options.displayMode);
 	},
 
 	/**
@@ -87,9 +100,9 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	 */
 	setDisplayMode (mode) {
 
-		console.log(`setDisplayMode: ${mode}`);
-
 		this.options.displayMode = mode;
+
+		if (!this.isActive()) return;
 
 		switch (this.options.displayMode) {
 
@@ -111,10 +124,13 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		}
 	},
 
+	/**
+	 * Display the particles at the given frame index
+	 * @param index {number} the keyframe index
+	 */
 	setFrameIndex (index) {
 
-		console.log(`setFrameIndex: ${index}`);
-
+		if (!this.isActive()) return;
 		const self = this;
 		self._frameIndex = index;
 
@@ -147,12 +163,20 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 	/*------------------------------------ PRIVATE ------------------------------------------*/
 
+	/**
+	 * Create the L.canvas renderer and custom pane to display particles
+	 * @private
+	 */
 	_createRenderer () {
 		// create separate pane for canvas renderer
 		this._pane = this._map.createPane('particle-dispersion');
 		this._renderer = L.canvas({ pane: 'particle-dispersion' });
 	},
 
+	/**
+	 * Remove the particle layer from the map and clear our reference
+	 * @private
+	 */
 	_clearDisplay () {
 		if (this._particleLayer) this._map.removeLayer(this._particleLayer);
 		this._particleLayer = null;
@@ -169,16 +193,17 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		return this._colors;
 	},
 
+	/**
+	 * Create the display layer (heatmap) for FINAL distribution.
+	 * @private
+	 */
 	_initDisplayFinal () {
+
 		this._clearDisplay();
 
 		if (this.options.data){
 			this._createColors();
-
 			let finalData = this._createFinalData();
-
-			console.log(finalData);
-
 			this._particleLayer = L.heatLayer(finalData, { radius: 15 });
 			this._particleLayer.addTo(this._map);
 		}
@@ -238,10 +263,6 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		return finalData;
 	},
 
-	_getParticleLastSnapshot (particleId) {
-
-	},
-
 	/**
 	 * Process data into expected leaflet.heat format,
 	 * plotting all particles for every snapshot
@@ -268,21 +289,25 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		return exposureData;
 	},
 
+	/**
+	 * Create the display layer (heatmap) for cumulative EXPOSURE
+	 * @private
+	 */
 	_initDisplayExposure () {
 		this._clearDisplay();
 
 		if (this.options.data){
 			this._createColors();
-
 			let exposureData = this._createExposureData();
-
-			console.log(exposureData);
-
 			this._particleLayer = L.heatLayer(exposureData, { radius: 15 });
 			this._particleLayer.addTo(this._map);
 		}
 	},
 
+	/**
+	 * Create the display layer (L.CircleMarkers) for KEYFRAME's
+	 * @private
+	 */
 	_initDisplayKeyframe () {
 
 		this._clearDisplay();

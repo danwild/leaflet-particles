@@ -9,7 +9,7 @@ $(document).ready(function () {
 	var map = L.map('map').setView([ firstParticle[1], firstParticle[0] ], 8);
 
 	console.log(data);
-	console.log('stepCount ' + stepCount);
+	console.log('frame count ' + stepCount);
 
 	L.tileLayer("http://{s}.sm.mapstack.stamen.com/(toner-lite,$fff[difference],$fff[@23],$fff[hsl-saturation@20])/{z}/{x}/{y}.png")
 		.addTo(map);
