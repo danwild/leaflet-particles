@@ -18,9 +18,9 @@ Creates a custom leaflet layer with display modes:
 
 ## install
 Assuming you have node and npm installed:
-```bash
+```shell
 npm install leaflet-particle-dispersion --save
-`
+```
 
 ## dependencies
 This plugin depends on [chroma-js](https://github.com/gka/chroma.js),

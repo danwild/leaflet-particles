@@ -8,6 +8,11 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	_pLonIndex: 0,
 	_pDepthIndex: 2,
 	_pAgeIndex: 3,
+	//_pidIndex:    0,
+	//_pLatIndex:   1 + 1,
+	//_pLonIndex:   0 + 1,
+	//_pDepthIndex: 2 + 1,
+	//_pAgeIndex:   3 + 1,
 
 	// misc
 	_particleLayer: null,
@@ -138,7 +143,6 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 				fillColor: this._colors(particle[self._pAgeIndex]).hex(),
 				_feature: particle
 
-				// would be more efficient to have single tooltip for featureGroup..
 			}).bindTooltip('I love to parti-cle..', { sticky: true });
 
 			self._markers.push(marker);
@@ -172,32 +176,100 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	},
 	_initDisplayFinal: function _initDisplayFinal() {
 		this._clearDisplay();
-		this._createColors();
+
+		if (this.options.data) {
+			this._createColors();
+
+			var finalData = this._createFinalData();
+
+			console.log(finalData);
+
+			this._particleLayer = L.heatLayer(finalData, { radius: 15 });
+			this._particleLayer.addTo(this._map);
+		}
 	},
 
 
 	/**
-  * Process data into expected leaflet.heat format:
+  * Process data into expected leaflet.heat format,
+  * plotting only particles at their end of life
   * [ [lat, lon, intensity], ... ]
   * @private
   */
-	_createHeatmapData: function _createHeatmapData() {
+	_createFinalData: function _createFinalData() {
 		var _this = this;
 
-		var heatData = [];
+		var finalData = [];
+
+		// get keys, moving forward in time
+		var keys = Object.keys(this.options.data);
+		keys.sort(function (a, b) {
+			return new Date(a) - new Date(b);
+		});
+
+		// flatten the data
+		var snapshots = [];
+		keys.forEach(function (key) {
+			snapshots = snapshots.concat(_this.options.data[key]);
+		});
+
+		// get an array of uniq particles
+		var uids = [];
+		snapshots.forEach(function (snapshot) {
+			if (uids.indexOf(snapshot[_this._pidIndex]) === -1) uids.push(snapshot[_this._pidIndex]);
+		});
+
+		// step backwards from the end of the sim collecting
+		// final snapshots for each uniq particle
+		keys.reverse();
+
+		for (var i = 0; i < keys.length; i++) {
+
+			if (uids.length === 0) break;
+
+			// check each particle in the snapshot
+			this.options.data[keys[i]].forEach(function (snapshot) {
+
+				// if not recorded
+				var index = uids.indexOf(snapshot[_this._pidIndex]);
+				if (index !== -1) {
+
+					// grab it, and remove it from the list
+					finalData.push([snapshot[_this._pLatIndex], snapshot[_this._pLonIndex], 0.9]);
+					uids.splice(index, 1);
+				}
+			});
+		}
+
+		return finalData;
+	},
+	_getParticleLastSnapshot: function _getParticleLastSnapshot(particleId) {},
+
+
+	/**
+  * Process data into expected leaflet.heat format,
+  * plotting all particles for every snapshot
+  * [ [lat, lon, intensity], ... ]
+  * @private
+  */
+	_createExposureData: function _createExposureData() {
+		var _this2 = this;
+
+		var exposureData = [];
 		var keys = Object.keys(this.options.data);
 		var maxAge = Object.keys(this.options.data).length;
 
 		keys.forEach(function (key) {
-			_this.options.data[key].forEach(function (particle) {
-				heatData.push([particle[_this._pLatIndex], // lat
-				particle[_this._pLonIndex], // lon
-				particle[_this._pAgeIndex] / maxAge // scaled age
+			_this2.options.data[key].forEach(function (particle) {
+				exposureData.push([particle[_this2._pLatIndex], // lat
+				particle[_this2._pLonIndex], // lon
+				0.2
+				// particle[this._pAgeIndex] / maxAge // scaled age?
 				]);
 			});
 		});
 
-		return heatData;
+		return exposureData;
 	},
 	_initDisplayExposure: function _initDisplayExposure() {
 		this._clearDisplay();
@@ -205,11 +277,11 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		if (this.options.data) {
 			this._createColors();
 
-			var heatData = this._createHeatmapData();
+			var exposureData = this._createExposureData();
 
-			console.log(heatData);
+			console.log(exposureData);
 
-			this._particleLayer = L.heatLayer(heatData, { radius: 15 });
+			this._particleLayer = L.heatLayer(exposureData, { radius: 15 });
 			this._particleLayer.addTo(this._map);
 		}
 	},

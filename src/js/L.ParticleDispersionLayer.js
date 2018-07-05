@@ -6,6 +6,11 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	_pLonIndex:   0,
 	_pDepthIndex: 2,
 	_pAgeIndex:   3,
+	//_pidIndex:    0,
+	//_pLatIndex:   1 + 1,
+	//_pLonIndex:   0 + 1,
+	//_pDepthIndex: 2 + 1,
+	//_pAgeIndex:   3 + 1,
 
 	// misc
 	_particleLayer: null,
@@ -133,7 +138,6 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 				fillColor:   this._colors(particle[self._pAgeIndex]).hex(),
 				_feature:    particle
 
-				// would be more efficient to have single tooltip for featureGroup..
 			}).bindTooltip(`I love to parti-cle..`, { sticky: true });
 
 			self._markers.push(marker);
@@ -167,31 +171,101 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 	_initDisplayFinal () {
 		this._clearDisplay();
-		this._createColors();
+
+		if (this.options.data){
+			this._createColors();
+
+			let finalData = this._createFinalData();
+
+			console.log(finalData);
+
+			this._particleLayer = L.heatLayer(finalData, { radius: 15 });
+			this._particleLayer.addTo(this._map);
+		}
 	},
 
 	/**
-	 * Process data into expected leaflet.heat format:
+	 * Process data into expected leaflet.heat format,
+	 * plotting only particles at their end of life
 	 * [ [lat, lon, intensity], ... ]
 	 * @private
 	 */
-	_createHeatmapData () {
+	_createFinalData () {
 
-		let heatData = [];
+		let finalData = [];
+
+		// get keys, moving forward in time
+		let keys = Object.keys(this.options.data);
+		keys.sort((a, b) => { return new Date(a) - new Date(b); });
+
+		// flatten the data
+		let snapshots = [];
+		keys.forEach((key) => { snapshots = snapshots.concat(this.options.data[key]); });
+
+		// get an array of uniq particles
+		let uids = [];
+		snapshots.forEach((snapshot) => {
+			if (uids.indexOf(snapshot[this._pidIndex]) === -1) uids.push(snapshot[this._pidIndex]);
+		});
+
+		// step backwards from the end of the sim collecting
+		// final snapshots for each uniq particle
+		keys.reverse();
+
+		for (let i = 0; i < keys.length; i++) {
+
+			if (uids.length === 0) break;
+
+			// check each particle in the snapshot
+			this.options.data[keys[i]].forEach((snapshot) => {
+
+				// if not recorded
+				let index = uids.indexOf(snapshot[this._pidIndex]);
+				if (index !== -1) {
+
+					// grab it, and remove it from the list
+					finalData.push([
+						snapshot[this._pLatIndex],
+						snapshot[this._pLonIndex],
+						0.9
+					]);
+					uids.splice(index, 1);
+				}
+
+			});
+		}
+
+		return finalData;
+	},
+
+	_getParticleLastSnapshot (particleId) {
+
+	},
+
+	/**
+	 * Process data into expected leaflet.heat format,
+	 * plotting all particles for every snapshot
+	 * [ [lat, lon, intensity], ... ]
+	 * @private
+	 */
+	_createExposureData () {
+
+		let exposureData = [];
 		let keys = Object.keys(this.options.data);
 		let maxAge = Object.keys(this.options.data).length;
 
 		keys.forEach((key) => {
 			this.options.data[key].forEach((particle) => {
-				heatData.push([
+				exposureData.push([
 					particle[this._pLatIndex],         // lat
 					particle[this._pLonIndex],         // lon
-					particle[this._pAgeIndex] / maxAge // scaled age
+					0.2
+					// particle[this._pAgeIndex] / maxAge // scaled age?
 				]);
 			});
 		});
 
-		return heatData;
+		return exposureData;
 	},
 
 	_initDisplayExposure () {
@@ -200,11 +274,11 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		if (this.options.data){
 			this._createColors();
 
-			let heatData = this._createHeatmapData();
+			let exposureData = this._createExposureData();
 
-			console.log(heatData);
+			console.log(exposureData);
 
-			this._particleLayer = L.heatLayer(heatData, { radius: 15 });
+			this._particleLayer = L.heatLayer(exposureData, { radius: 15 });
 			this._particleLayer.addTo(this._map);
 		}
 	},
