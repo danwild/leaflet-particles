@@ -154,7 +154,7 @@ L.ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 				fillColor:   this._colors(particle[self._pAgeIndex]).hex(),
 				_feature:    particle
 
-			}).bindTooltip(`I love to parti-cle..`, { sticky: true });
+			});
 
 			self._markers.push(marker);
 			self._particleLayer.addLayer(marker);
