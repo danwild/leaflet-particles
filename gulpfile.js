@@ -24,9 +24,9 @@ gulp.task('scripts', function(done) {
 // bundle deps for standalone dist
 gulp.task('bundle', gulp.series('scripts', function(done) {
 	return gulp.src([
-			'dist/leaflet-particle-dispersion.js',
 			'node_modules/chroma-js/chroma.js',
-			'node_modules/leaflet.heat/dist/leaflet-heat.js'
+			'node_modules/leaflet.heat/dist/leaflet-heat.js',
+			'dist/leaflet-particle-dispersion.js'
 		])
 		.pipe(concat('leaflet-particle-dispersion-standalone.js'))
 		.pipe(gulp.dest('dist'))
