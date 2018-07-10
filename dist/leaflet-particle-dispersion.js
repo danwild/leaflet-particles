@@ -4,16 +4,16 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 
 (function (factory, window) {
 
-	// define an AMD module that relies on 'leaflet'
+	// AMD
 	if (typeof define === 'function' && define.amd) {
 		define(['leaflet', 'leaflet.heat', 'chroma-js'], factory);
 
-		// define a Common JS module that relies on 'leaflet'
+		// Common JS
 	} else if ((typeof exports === 'undefined' ? 'undefined' : _typeof(exports)) === 'object') {
 		module.exports = factory(require('leaflet'), require('leaflet.heat'), require('chroma-js'));
 	}
 
-	// attach your plugin to the global 'L' variable
+	// Global
 	if (typeof window !== 'undefined' && window.L && window.L.heatLayer && window.chroma) {
 		window.L.particleDispersionLayer = factory(L, window.L.heatLayer, window.chroma);
 	}
@@ -41,15 +41,6 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 
 		/*------------------------------------ LEAFLET SPECIFIC ------------------------------------------*/
 
-		// user options
-		options: {
-			data: null,
-			displayMode: '',
-			startFrameIndex: 0,
-			ageColorScale: null,
-			ageDomain: null
-		},
-
 		_active: false,
 		_map: null,
 		// the L.canvas renderer
@@ -57,10 +48,24 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 		// the DOM leaflet-pane that contains html canvas
 		_pane: null,
 
-		initialize: function initialize(options) {
-			L.setOptions(this, options);
+		// user options
+		options: {
+			data: null,
+			displayMode: '',
+			startFrameIndex: 0,
+			ageColorScale: null,
+			ageDomain: null,
+			exposureHeatOptions: {},
+			finalHeatOptions: {},
+
+			exposureIntensity: 0.9,
+			finalIntensity: 0.9
 		},
 
+		initialize: function initialize(options) {
+			// (L.setOptions was not working as expected)
+			this.options = this._extendObject(this.options, options);
+		},
 
 		/**
    * Initialise renderer when layer is added to the map / becomes active,
@@ -69,23 +74,11 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
    * @param map {Object} Leaflet map
    */
 		onAdd: function onAdd(map) {
-
 			this._active = true;
-
-			console.log('options');
-			console.log(this.options);
-
 			this._map = map;
-
-			if (this.options.hasOwnProperty('startFrameIndex')) this._frameIndex = this.options.startFrameIndex;
-			this.options.ageColorScale = this.options.ageColorScale || ['green', 'yellow', 'red'];
-			this.options.ageDomain = this.options.ageDomain || null;
-
 			this._createRenderer();
-
 			if (this.options.displayMode) this.setDisplayMode(this.options.displayMode);
 		},
-
 
 		/**
    * Remove the pane from DOM, and void renderer when layer removed from map
@@ -172,7 +165,6 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 
 				var particle = frame[i];
 				var pos = self._map.wrapLatLng([particle[self._pLatIndex], particle[self._pLonIndex]]);
-
 				var marker = L.circleMarker(pos, {
 					renderer: self._renderer,
 					stroke: false,
@@ -235,7 +227,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 			if (this.options.data) {
 				this._createColors();
 				var finalData = this._createFinalData();
-				this._particleLayer = L.heatLayer(finalData, { radius: 15 });
+				this._particleLayer = L.heatLayer(finalData, this.options.finalHeatOptions);
 				this._particleLayer.addTo(this._map);
 			}
 		},
@@ -286,7 +278,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 					if (index !== -1) {
 
 						// grab it, and remove it from the list
-						finalData.push([snapshot[_this._pLatIndex], snapshot[_this._pLonIndex], 0.9]);
+						finalData.push([snapshot[_this._pLatIndex], snapshot[_this._pLonIndex], _this.options.finalIntensity]);
 						uids.splice(index, 1);
 					}
 				});
@@ -307,14 +299,12 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 
 			var exposureData = [];
 			var keys = Object.keys(this.options.data);
-			var maxAge = Object.keys(this.options.data).length;
 
 			keys.forEach(function (key) {
 				_this2.options.data[key].forEach(function (particle) {
 					exposureData.push([particle[_this2._pLatIndex], // lat
 					particle[_this2._pLonIndex], // lon
-					0.2
-					// particle[this._pAgeIndex] / maxAge // scaled age?
+					_this2.options.exposureIntensity // intensity
 					]);
 				});
 			});
@@ -333,7 +323,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 			if (this.options.data) {
 				this._createColors();
 				var exposureData = this._createExposureData();
-				this._particleLayer = L.heatLayer(exposureData, { radius: 15 });
+				this._particleLayer = L.heatLayer(exposureData, this.options.exposureHeatOptions);
 				this._particleLayer.addTo(this._map);
 			}
 		},
@@ -357,6 +347,31 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 			} else {
 				console.error('Attempted to display keyframes but there is no data.');
 			}
+		},
+
+
+		/**
+   * Deep merge Objects,
+   * Note that destination arrays will be overwritten where they exist in source.
+   * @param destination
+   * @param source
+   * @returns {*}
+   */
+		_extendObject: function _extendObject(destination, source) {
+			var self = this;
+			for (var property in source) {
+				// .constructor avoids tripping over prototypes etc.
+				// don't traverse the data..
+				if (property === 'data') {
+					destination[property] = source[property];
+				} else if (source[property] && source[property].constructor && source[property].constructor === Object) {
+					destination[property] = destination[property] || {};
+					self._extendObject(destination[property], source[property]);
+				} else {
+					destination[property] = source[property];
+				}
+			}
+			return destination;
 		}
 	});
 

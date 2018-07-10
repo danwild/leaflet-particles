@@ -50,7 +50,17 @@ const particleLayer = L.particleDispersionLayer({
   ageColorScale: ['green', 'yellow', 'red'],
 
   // the domain to fit the ageColorScale, default: keyframe length
-  ageDomain: [0, 100]
+  ageDomain: [0, 100],
+
+  // leaflet.heat options for each layer, see:
+  // https://github.com/Leaflet/Leaflet.heat#lheatlayerlatlngs-options
+  exposureHeatOptions: {},
+  finalHeatOptions: {}
+
+  // the intensity value to use for each point on the heatmap, default: 0.9
+  // https://github.com/Leaflet/Leaflet.heat#basic-usage
+  exposureIntensity: 0.9,
+  finalIntensity: 0.9
 
 });
 

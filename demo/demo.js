@@ -18,7 +18,10 @@ $(document).ready(function () {
 		data: data,
 		startFrameIndex: 10,
 		ageColorScale: ['green', 'yellow', 'red'],
-		ageDomain: [0, stepCount]
+		ageDomain: [0, stepCount],
+		exposureHeatOptions: {
+			gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'}
+		}
 	});
 
 	var layerControl = L.control.layers({}, {particles: particleLayer});

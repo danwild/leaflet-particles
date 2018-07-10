@@ -1,16 +1,16 @@
 
 (function (factory, window) {
 
-	// define an AMD module that relies on 'leaflet'
+	// AMD
 	if (typeof define === 'function' && define.amd) {
 		define(['leaflet', 'leaflet.heat', 'chroma-js'], factory);
 
-		// define a Common JS module that relies on 'leaflet'
+	// Common JS
 	} else if (typeof exports === 'object') {
 		module.exports = factory(require('leaflet'), require('leaflet.heat'), require('chroma-js'));
 	}
 
-	// attach your plugin to the global 'L' variable
+	// Global
 	if (typeof window !== 'undefined' && window.L && window.L.heatLayer && window.chroma) {
 		window.L.particleDispersionLayer = factory(L, window.L.heatLayer, window.chroma);
 	}
@@ -38,15 +38,6 @@
 
 		/*------------------------------------ LEAFLET SPECIFIC ------------------------------------------*/
 
-		// user options
-		options: {
-			data:            null,
-			displayMode:     '',
-			startFrameIndex: 0,
-			ageColorScale:   null,
-			ageDomain:       null
-		},
-
 		_active: false,
 		_map:      null,
 		// the L.canvas renderer
@@ -54,8 +45,23 @@
 		// the DOM leaflet-pane that contains html canvas
 		_pane:     null,
 
-		initialize (options) {
-			L.setOptions(this, options);
+		// user options
+		options: {
+			data:            null,
+			displayMode:     '',
+			startFrameIndex: 0,
+			ageColorScale:   null,
+			ageDomain:       null,
+			exposureHeatOptions: {},
+			finalHeatOptions: {},
+
+			exposureIntensity: 0.9,
+			finalIntensity: 0.9
+		},
+
+		initialize: function (options) {
+			// (L.setOptions was not working as expected)
+			this.options = this._extendObject(this.options, options);
 		},
 
 		/**
@@ -64,21 +70,10 @@
 		 *
 		 * @param map {Object} Leaflet map
 		 */
-		onAdd (map) {
-
+		onAdd: function (map) {
 			this._active = true;
-
-			console.log('options');
-			console.log(this.options);
-
 			this._map = map;
-
-			if (this.options.hasOwnProperty('startFrameIndex')) this._frameIndex = this.options.startFrameIndex;
-			this.options.ageColorScale = this.options.ageColorScale || ['green', 'yellow', 'red'];
-			this.options.ageDomain = this.options.ageDomain || null;
-
 			this._createRenderer();
-
 			if (this.options.displayMode) this.setDisplayMode(this.options.displayMode);
 		},
 
@@ -163,7 +158,6 @@
 
 				const particle = frame[i];
 				const pos = self._map.wrapLatLng([particle[self._pLatIndex], particle[self._pLonIndex]]);
-
 				let marker = L.circleMarker(pos, {
 					renderer:    self._renderer,
 					stroke:      false,
@@ -222,7 +216,7 @@
 			if (this.options.data){
 				this._createColors();
 				let finalData = this._createFinalData();
-				this._particleLayer = L.heatLayer(finalData, { radius: 15 });
+				this._particleLayer = L.heatLayer(finalData, this.options.finalHeatOptions);
 				this._particleLayer.addTo(this._map);
 			}
 		},
@@ -270,7 +264,7 @@
 						finalData.push([
 							snapshot[this._pLatIndex],
 							snapshot[this._pLonIndex],
-							0.9
+							this.options.finalIntensity
 						]);
 						uids.splice(index, 1);
 					}
@@ -291,15 +285,13 @@
 
 			let exposureData = [];
 			let keys = Object.keys(this.options.data);
-			let maxAge = Object.keys(this.options.data).length;
 
 			keys.forEach((key) => {
 				this.options.data[key].forEach((particle) => {
 					exposureData.push([
 						particle[this._pLatIndex],         // lat
 						particle[this._pLonIndex],         // lon
-						0.2
-						// particle[this._pAgeIndex] / maxAge // scaled age?
+						this.options.exposureIntensity     // intensity
 					]);
 				});
 			});
@@ -317,7 +309,7 @@
 			if (this.options.data){
 				this._createColors();
 				let exposureData = this._createExposureData();
-				this._particleLayer = L.heatLayer(exposureData, { radius: 15 });
+				this._particleLayer = L.heatLayer(exposureData, this.options.exposureHeatOptions);
 				this._particleLayer.addTo(this._map);
 			}
 		},
@@ -340,6 +332,30 @@
 			} else {
 				console.error('Attempted to display keyframes but there is no data.')
 			}
+		},
+
+		/**
+		 * Deep merge Objects,
+		 * Note that destination arrays will be overwritten where they exist in source.
+		 * @param destination
+		 * @param source
+		 * @returns {*}
+		 */
+		_extendObject (destination, source) {
+			let self = this;
+			for (const property in source) {
+				// .constructor avoids tripping over prototypes etc.
+				// don't traverse the data..
+				if (property === 'data') {
+					destination[property] = source[property];
+				} else if (source[property] && source[property].constructor && source[property].constructor === Object) {
+					destination[property] = destination[property] || {};
+					self._extendObject(destination[property], source[property]);
+				} else {
+					destination[property] = source[property];
+				}
+			}
+			return destination;
 		}
 
 	});
