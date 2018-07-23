@@ -1,6 +1,6 @@
 {
 	"name": "leaflet-particle-dispersion",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Visualise dispersion of particles on a leaflet map.",
 	"main": "dist/leaflet-particle-dispersion.js",
 	"scripts": {

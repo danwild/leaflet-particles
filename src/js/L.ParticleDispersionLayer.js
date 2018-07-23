@@ -21,6 +21,27 @@
 
 }(function (L, chroma) {
 
+	const _defaultHeatOptions = {
+		blur: 1,
+		// radius should be small ONLY if scaleRadius is true (or small radius is intended)
+		// if scaleRadius is false it will be the constant radius used in pixels
+		//"radiusMeters": 100,
+		"radius": 20,
+		"maxOpacity": .8,
+		// scales the radius based on map zoom
+		"scaleRadius": false,
+		// if set to false the heatmap uses the global maximum for colorization
+		// if activated: uses the data maximum within the current map boundaries
+		//   (there will always be a red spot with useLocalExtremas true)
+		"useLocalExtrema": false,
+		// which field name in your data represents the latitude - default "lat"
+		latField: 'lat',
+		// which field name in your data represents the longitude - default "lng"
+		lngField: 'lng',
+		// which field name in your data represents the data value - default "value"
+		valueField: 'value'
+	};
+
 	const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 		// particle data indices
@@ -57,32 +78,8 @@
 			startFrameIndex: 0,
 			ageColorScale:   null,
 			ageDomain:       null,
-			exposureHeatOptions: {},
-			finalHeatOptions: {
-				blur: 1,
-				// radius should be small ONLY if scaleRadius is true (or small radius is intended)
-				// if scaleRadius is false it will be the constant radius used in pixels
-				"radiusMeters": 1000,
-				"radius": 20,
-				"maxOpacity": .8,
-				// scales the radius based on map zoom
-				"scaleRadius": false,
-				// if set to false the heatmap uses the global maximum for colorization
-				// if activated: uses the data maximum within the current map boundaries
-				//   (there will always be a red spot with useLocalExtremas true)
-				"useLocalExtrema": false,
-				// which field name in your data represents the latitude - default "lat"
-				latField: 'lat',
-				// which field name in your data represents the longitude - default "lng"
-				lngField: 'lng',
-				// which field name in your data represents the data value - default "value"
-				valueField: 'value',
-				onExtremaChange: function(data) {
-					console.log('onExtremaChange');
-					console.log(data);
-				}
-			},
-
+			exposureHeatOptions: _defaultHeatOptions,
+			finalHeatOptions: _defaultHeatOptions,
 			exposureIntensity: 1,
 			finalIntensity: 1
 		},
@@ -244,8 +241,7 @@
 			if (this.options.data){
 
 				this._createColors();
-				let finalData = this._createFinalData();
-
+				const finalData = this._createFinalData();
 				this._particleLayer = new HeatmapOverlay(this.options.finalHeatOptions);
 				this._particleLayer.addTo(this._map);
 				this._particleLayer.setData(finalData);
@@ -304,7 +300,7 @@
 			}
 
 			return {
-				max: 200,
+				max: 10,
 				data: finalData
 			};
 		},
@@ -322,15 +318,18 @@
 
 			keys.forEach((key) => {
 				this.options.data[key].forEach((particle) => {
-					exposureData.push([
-						particle[this._pLatIndex],         // lat
-						particle[this._pLonIndex],         // lon
-						this.options.exposureIntensity     // intensity
-					]);
+					exposureData.push({
+						lat:   particle[this._pLatIndex],
+						lng:   particle[this._pLonIndex],
+						value: this.options.exposureIntensity
+					});
 				});
 			});
 
-			return exposureData;
+			return {
+				max: 10,
+				data: exposureData
+			};
 		},
 
 		/**
@@ -342,9 +341,10 @@
 
 			if (this.options.data){
 				this._createColors();
-				let exposureData = this._createExposureData();
-				this._particleLayer = L.heatLayer(exposureData, this.options.exposureHeatOptions);
+				const exposureData = this._createExposureData();
+				this._particleLayer = new HeatmapOverlay(this.options.exposureHeatOptions);
 				this._particleLayer.addTo(this._map);
+				this._particleLayer.setData(exposureData);
 			}
 		},
 
