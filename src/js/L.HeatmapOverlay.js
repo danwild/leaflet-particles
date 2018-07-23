@@ -8,26 +8,8 @@
  *
  * 2018 <danwild@y7mail.com> Modified to handle radiusMeters.
  */
-(function (factory, window) {
 
-	// Supports UMD. AMD, CommonJS/Node.js and browser context
-	if (typeof module !== "undefined" && module.exports) {
-		module.exports = factory(
-			require('heatmap.js'),
-			require('leaflet')
-		);
-	} else if (typeof define === "function" && define.amd) {
-		define(['heatmap.js', 'leaflet'], factory);
-	} else {
-
-		if (window.h337 && window.L) {
-			window.HeatmapOverlay = factory(window.h337, window.L);
-		} else {
-			throw new Error('Tried to init in browser context but had missing dependencies.');
-		}
-	}
-
-}(function (h337, L) {
+var HeatmapOverlay = (function() {
 
 	'use strict';
 
@@ -36,7 +18,7 @@
 		L.Layer = L.Class;
 	}
 
-	var HeatmapOverlay = L.Layer.extend({
+	var heatmapOverlay = L.Layer.extend({
 
 		initialize: function (config) {
 			this.cfg = config;
@@ -92,7 +74,7 @@
 			var point = mapPane._leaflet_pos;
 
 			// reposition the layer
-			this._el.style[HeatmapOverlay.CSS_TRANSFORM] = 'translate(' +
+			this._el.style[heatmapOverlay.CSS_TRANSFORM] = 'translate(' +
 				-Math.round(point.x) + 'px,' +
 				-Math.round(point.y) + 'px)';
 
@@ -247,7 +229,7 @@
 		}
 	});
 
-	HeatmapOverlay.CSS_TRANSFORM = (function() {
+	heatmapOverlay.CSS_TRANSFORM = (function() {
 		var div = document.createElement('div');
 		var props = [
 			'transform',
@@ -266,6 +248,6 @@
 		return props[0];
 	})();
 
-	return HeatmapOverlay;
+	return heatmapOverlay;
 
-}, window));
+})();

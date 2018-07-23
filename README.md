@@ -1,6 +1,6 @@
 # leaflet-particle-dispersion [![NPM version][npm-image]][npm-url] [![NPM Downloads][npm-downloads-image]][npm-url]
 
-Visualise dispersion of particles on a leaflet map.
+**ALPHA** plugin visualise dispersion of particles on a leaflet map.
 
 Creates a custom leaflet layer with display modes:
 - **Final particle distribution:**

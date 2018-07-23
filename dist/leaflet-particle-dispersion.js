@@ -12,22 +12,8 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
  *
  * 2018 <danwild@y7mail.com> Modified to handle radiusMeters.
  */
-(function (factory, window) {
 
-	// Supports UMD. AMD, CommonJS/Node.js and browser context
-	if (typeof module !== "undefined" && module.exports) {
-		module.exports = factory(require('heatmap.js'), require('leaflet'));
-	} else if (typeof define === "function" && define.amd) {
-		define(['heatmap.js', 'leaflet'], factory);
-	} else {
-
-		if (window.h337 && window.L) {
-			window.HeatmapOverlay = factory(window.h337, window.L);
-		} else {
-			throw new Error('Tried to init in browser context but had missing dependencies.');
-		}
-	}
-})(function (h337, L) {
+var HeatmapOverlay = function () {
 
 	'use strict';
 
@@ -37,7 +23,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 		L.Layer = L.Class;
 	}
 
-	var HeatmapOverlay = L.Layer.extend({
+	var heatmapOverlay = L.Layer.extend({
 
 		initialize: function initialize(config) {
 			this.cfg = config;
@@ -95,7 +81,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 			var point = mapPane._leaflet_pos;
 
 			// reposition the layer
-			this._el.style[HeatmapOverlay.CSS_TRANSFORM] = 'translate(' + -Math.round(point.x) + 'px,' + -Math.round(point.y) + 'px)';
+			this._el.style[heatmapOverlay.CSS_TRANSFORM] = 'translate(' + -Math.round(point.x) + 'px,' + -Math.round(point.y) + 'px)';
 
 			this._update();
 		},
@@ -247,7 +233,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 		}
 	});
 
-	HeatmapOverlay.CSS_TRANSFORM = function () {
+	heatmapOverlay.CSS_TRANSFORM = function () {
 		var div = document.createElement('div');
 		var props = ['transform', 'WebkitTransform', 'MozTransform', 'OTransform', 'msTransform'];
 
@@ -260,27 +246,27 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 		return props[0];
 	}();
 
-	return HeatmapOverlay;
-}, window);
+	return heatmapOverlay;
+}();
 (function (factory, window) {
 
 	// AMD
 	if (typeof define === 'function' && define.amd) {
-		define(['leaflet', 'heatmap.js', 'HeatmapOverlay', 'chroma-js'], factory);
+		define(['leaflet', 'chroma-js'], factory);
 
 		// Common JS
 	} else if ((typeof exports === 'undefined' ? 'undefined' : _typeof(exports)) === 'object') {
-		module.exports = factory(require('leaflet'), require('heatmap.js'), require('HeatmapOverlay'), require('chroma-js'));
+		module.exports = factory(require('leaflet'), require('chroma-js'));
 	} else {
 
 		// Global
-		if (typeof window !== 'undefined' && window.L && window.HeatmapOverlay && window.chroma) {
-			window.L.particleDispersionLayer = factory(L, window.HeatmapOverlay, window.chroma);
+		if (typeof window !== 'undefined' && window.L && window.chroma) {
+			window.L.particleDispersionLayer = factory(L, window.chroma);
 		} else {
 			throw new Error('Tried to init in browser context but had missing dependencies.');
 		}
 	}
-})(function (L, HeatmapOverlay, chroma) {
+})(function (L, chroma) {
 
 	var ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 

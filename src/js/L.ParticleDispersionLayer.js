@@ -2,24 +2,24 @@
 
 	// AMD
 	if (typeof define === 'function' && define.amd) {
-		define(['leaflet', 'heatmap.js', 'HeatmapOverlay', 'chroma-js'], factory);
+		define(['leaflet', 'chroma-js'], factory);
 
 	// Common JS
 	} else if (typeof exports === 'object') {
-		module.exports = factory(require('leaflet'), require('heatmap.js'), require('HeatmapOverlay'), require('chroma-js'));
+		module.exports = factory(require('leaflet'), require('chroma-js'));
 
 	} else {
 
 		// Global
-		if (typeof window !== 'undefined' && window.L && window.HeatmapOverlay && window.chroma) {
-			window.L.particleDispersionLayer = factory(L, window.HeatmapOverlay, window.chroma);
+		if (typeof window !== 'undefined' && window.L && window.chroma) {
+			window.L.particleDispersionLayer = factory(L, window.chroma);
 		} else {
 			throw new Error('Tried to init in browser context but had missing dependencies.');
 		}
 
 	}
 
-}(function (L, HeatmapOverlay, chroma) {
+}(function (L, chroma) {
 
 	const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
