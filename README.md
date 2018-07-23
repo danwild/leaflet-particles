@@ -23,12 +23,16 @@ npm install leaflet-particle-dispersion --save
 ```
 
 ## dependencies
-This plugin depends on [chroma-js](https://github.com/gka/chroma.js),
-and [leaflet.heat](https://github.com/Leaflet/Leaflet.heat).
+
+This plugin has external dependencies:
+- [chroma-js](https://github.com/gka/chroma.js)
+- [heatmap.js](https://github.com/pa7/heatmap.js)
+- [leaflet-heatmap-radius](https://github.com/danwild/leaflet-heatmap-radius)
 
 To use this plugin, you either need to:
  - load these dependencies yourself (prior to loading `leaflet-particle-dispersion`); or
  - use the standalone version with dependencies bundled, in `dist/leaflet-particle-dispersion-standalone.js`
+
 
 ## use and options
 
