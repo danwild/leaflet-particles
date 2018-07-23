@@ -52,15 +52,18 @@ const particleLayer = L.particleDispersionLayer({
   // the domain to fit the ageColorScale, default: keyframe length
   ageDomain: [0, 100],
 
-  // leaflet.heat options for each layer, see:
-  // https://github.com/Leaflet/Leaflet.heat#lheatlayerlatlngs-options
-  exposureHeatOptions: {},
+  // heatmap.js options for each layer, see:
+  // https://www.patrick-wied.at/static/heatmapjs/example-heatmap-leaflet.html
+  // note that addtionally; we have an enhanced version of the leaflet-heatmap.js plugin (see /src)
+  // that provides a radiusMeters option - allows you to specify a **fixed** radius in meters (instead of pixels)
+  exposureHeatOptions: {
+    radiusMeters: 100 // example fixed radius of 100m
+  },
   finalHeatOptions: {}
 
-  // the intensity value to use for each point on the heatmap, default: 0.9
-  // https://github.com/Leaflet/Leaflet.heat#basic-usage
-  exposureIntensity: 0.9,
-  finalIntensity: 0.9
+  // the intensity value to use for each point on the heatmap, default: 1
+  exposureIntensity: 1,
+  finalIntensity: 1
 
 });
 

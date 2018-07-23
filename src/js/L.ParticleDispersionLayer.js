@@ -1,20 +1,25 @@
-
 (function (factory, window) {
 
 	// AMD
 	if (typeof define === 'function' && define.amd) {
-		define(['leaflet', 'leaflet.heat', 'chroma-js'], factory);
+		define(['leaflet', 'heatmap.js', 'HeatmapOverlay', 'chroma-js'], factory);
 
 	// Common JS
 	} else if (typeof exports === 'object') {
-		module.exports = factory(require('leaflet'), require('leaflet.heat'), require('chroma-js'));
+		module.exports = factory(require('leaflet'), require('heatmap.js'), require('HeatmapOverlay'), require('chroma-js'));
+
+	} else {
+
+		// Global
+		if (typeof window !== 'undefined' && window.L && window.HeatmapOverlay && window.chroma) {
+			window.L.particleDispersionLayer = factory(L, window.HeatmapOverlay, window.chroma);
+		} else {
+			throw new Error('Tried to init in browser context but had missing dependencies.');
+		}
+
 	}
 
-	// Global
-	if (typeof window !== 'undefined' && window.L && window.L.heatLayer && window.chroma) {
-		window.L.particleDispersionLayer = factory(L, window.L.heatLayer, window.chroma);
-	}
-}(function (L, leafletHeat, chroma) {
+}(function (L, HeatmapOverlay, chroma) {
 
 	const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
@@ -53,10 +58,33 @@
 			ageColorScale:   null,
 			ageDomain:       null,
 			exposureHeatOptions: {},
-			finalHeatOptions: {},
+			finalHeatOptions: {
+				blur: 1,
+				// radius should be small ONLY if scaleRadius is true (or small radius is intended)
+				// if scaleRadius is false it will be the constant radius used in pixels
+				"radiusMeters": 1000,
+				"radius": 20,
+				"maxOpacity": .8,
+				// scales the radius based on map zoom
+				"scaleRadius": false,
+				// if set to false the heatmap uses the global maximum for colorization
+				// if activated: uses the data maximum within the current map boundaries
+				//   (there will always be a red spot with useLocalExtremas true)
+				"useLocalExtrema": false,
+				// which field name in your data represents the latitude - default "lat"
+				latField: 'lat',
+				// which field name in your data represents the longitude - default "lng"
+				lngField: 'lng',
+				// which field name in your data represents the data value - default "value"
+				valueField: 'value',
+				onExtremaChange: function(data) {
+					console.log('onExtremaChange');
+					console.log(data);
+				}
+			},
 
-			exposureIntensity: 0.9,
-			finalIntensity: 0.9
+			exposureIntensity: 1,
+			finalIntensity: 1
 		},
 
 		initialize: function (options) {
@@ -214,10 +242,13 @@
 			this._clearDisplay();
 
 			if (this.options.data){
+
 				this._createColors();
 				let finalData = this._createFinalData();
-				this._particleLayer = L.heatLayer(finalData, this.options.finalHeatOptions);
+
+				this._particleLayer = new HeatmapOverlay(this.options.finalHeatOptions);
 				this._particleLayer.addTo(this._map);
+				this._particleLayer.setData(finalData);
 			}
 		},
 
@@ -261,18 +292,21 @@
 					if (index !== -1) {
 
 						// grab it, and remove it from the list
-						finalData.push([
-							snapshot[this._pLatIndex],
-							snapshot[this._pLonIndex],
-							this.options.finalIntensity
-						]);
+						finalData.push({
+							lat:   snapshot[this._pLatIndex],
+							lng:   snapshot[this._pLonIndex],
+							value: this.options.finalIntensity
+						});
 						uids.splice(index, 1);
 					}
 
 				});
 			}
 
-			return finalData;
+			return {
+				max: 200,
+				data: finalData
+			};
 		},
 
 		/**
