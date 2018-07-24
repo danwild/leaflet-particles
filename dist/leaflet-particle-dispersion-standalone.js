@@ -3874,6 +3874,14 @@
 		},
 
 		/**
+	  * Returns the current `displayMode`
+	  * @returns {string} One of: ['FINAL', 'EXPOSURE', 'KEYFRAME', null]
+	  */
+		getDisplayMode() {
+			return this.options.displayMode;
+		},
+
+		/**
 	  * Display the particles at the given frame index
 	  * @param index {number} the keyframe index
 	  */
