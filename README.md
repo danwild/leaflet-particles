@@ -91,6 +91,7 @@ particleLayer.setFrameIndex(index);
 |`update`||update the layer/redraw|
 |`setOptions`|`options: {Object}`|update the layer with new options|
 |`setDisplayMode`|`mode: {String}`|one of: `FINAL`, `EXPOSURE`, `KEYFRAME`|
+|`getDisplayMode`||Returns the current `displayMode`|
 |`setFrameIndex`|`index: {Number}`|display the particles at the given frame index|
 
 ## data format
