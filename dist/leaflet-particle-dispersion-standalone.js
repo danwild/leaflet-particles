@@ -3718,27 +3718,6 @@
 
 	});
 
-	const _defaultHeatOptions = {
-		blur: 1,
-		// radius should be small ONLY if scaleRadius is true (or small radius is intended)
-		// if scaleRadius is false it will be the constant radius used in pixels
-		//"radiusMeters": 100,
-		"radius": 20,
-		"maxOpacity": .8,
-		// scales the radius based on map zoom
-		"scaleRadius": false,
-		// if set to false the heatmap uses the global maximum for colorization
-		// if activated: uses the data maximum within the current map boundaries
-		//   (there will always be a red spot with useLocalExtremas true)
-		"useLocalExtrema": false,
-		// which field name in your data represents the latitude - default "lat"
-		latField: 'lat',
-		// which field name in your data represents the longitude - default "lng"
-		lngField: 'lng',
-		// which field name in your data represents the data value - default "value"
-		valueField: 'value'
-	};
-
 	const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 		// particle data indices
@@ -3775,8 +3754,27 @@
 			startFrameIndex: 0,
 			ageColorScale: null,
 			ageDomain: null,
-			exposureHeatOptions: _defaultHeatOptions,
-			finalHeatOptions: _defaultHeatOptions,
+			heatOptions: {
+				blur: 1,
+				// radius should be small ONLY if scaleRadius is true (or small radius is intended)
+				// if scaleRadius is false it will be the constant radius used in pixels
+				"radiusMeters": 1000,
+				"fixedRadius": false,
+				"radius": 20,
+				"maxOpacity": .8,
+				// scales the radius based on map zoom
+				"scaleRadius": false,
+				// if set to false the heatmap uses the global maximum for colorization
+				// if activated: uses the data maximum within the current map boundaries
+				//   (there will always be a red spot with useLocalExtremas true)
+				"useLocalExtrema": false,
+				// which field name in your data represents the latitude - default "lat"
+				latField: 'lat',
+				// which field name in your data represents the longitude - default "lng"
+				lngField: 'lng',
+				// which field name in your data represents the data value - default "value"
+				valueField: 'value'
+			},
 			exposureIntensity: 1,
 			finalIntensity: 1
 		},
@@ -3955,7 +3953,7 @@
 
 				this._createColors();
 				const finalData = this._createFinalData();
-				this._particleLayer = new leafletHeatmapRadius(this.options.finalHeatOptions);
+				this._particleLayer = new leafletHeatmapRadius(this.options.heatOptions);
 				this._particleLayer.addTo(this._map);
 				this._particleLayer.setData(finalData);
 			}
@@ -4053,12 +4051,13 @@
 	  * @private
 	  */
 		_initDisplayExposure() {
+
 			this._clearDisplay();
 
 			if (this.options.data) {
 				this._createColors();
 				const exposureData = this._createExposureData();
-				this._particleLayer = new leafletHeatmapRadius(this.options.exposureHeatOptions);
+				this._particleLayer = new leafletHeatmapRadius(this.options.heatOptions);
 				this._particleLayer.addTo(this._map);
 				this._particleLayer.setData(exposureData);
 			}

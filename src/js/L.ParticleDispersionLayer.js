@@ -44,7 +44,8 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 			blur: 1,
 			// radius should be small ONLY if scaleRadius is true (or small radius is intended)
 			// if scaleRadius is false it will be the constant radius used in pixels
-			//"radiusMeters": 100,
+			"radiusMeters": 1000,
+			"fixedRadius": false,
 			"radius": 20,
 			"maxOpacity": .8,
 			// scales the radius based on map zoom
@@ -333,6 +334,7 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	 * @private
 	 */
 	_initDisplayExposure () {
+
 		this._clearDisplay();
 
 		if (this.options.data){
