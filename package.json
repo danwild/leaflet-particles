@@ -1,6 +1,6 @@
 {
 	"name": "leaflet-particle-dispersion",
-	"version": "0.2.3",
+	"version": "0.2.4",
 	"description": "Visualise dispersion of particles on a leaflet map.",
 	"main": "dist/leaflet-particle-dispersion.js",
 	"scripts": {
@@ -29,7 +29,7 @@
 	"dependencies": {
 		"chroma-js": "^1.3.4",
 		"heatmap.js": "^2.0.5",
-		"leaflet-heatmap-radius": "^0.0.1"
+		"leaflet-heatmap-radius": "^0.0.2"
 	},
 	"devDependencies": {
 		"babel-preset-es2015": "^6.9.0",
