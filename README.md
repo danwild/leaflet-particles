@@ -89,6 +89,8 @@ particleLayer.setFrameIndex(index);
 |---|---|---|
 |`isActive`||check if the particle layer is currently active on the map|
 |`setData`|`data: {Object}`|update the layer with new data|
+|`update`||update the layer/redraw|
+|`setOptions`|`options: {Object}`|update the layer with new options|
 |`setDisplayMode`|`mode: {String}`|one of: `FINAL`, `EXPOSURE`, `KEYFRAME`|
 |`setFrameIndex`|`index: {Number}`|display the particles at the given frame index|
 

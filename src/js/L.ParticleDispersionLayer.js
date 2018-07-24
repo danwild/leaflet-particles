@@ -116,6 +116,22 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	},
 
 	/**
+	 * Set options object, updates layer
+	 * @param options
+	 */
+	setOptions (options) {
+		this.options = options;
+		this.update();
+	},
+
+	/**
+	 * Trigger layer update/redraw
+	 */
+	update () {
+		this.setDisplayMode(this.options.displayMode);
+	},
+
+	/**
 	 * Set the display mode of the layer
 	 * @param mode {string} One of: ['FINAL', 'EXPOSURE', 'KEYFRAME']
 	 */
