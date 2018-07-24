@@ -120,7 +120,7 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	 * @param options
 	 */
 	setOptions (options) {
-		this.options = options;
+		this.options = this._extendObject(this.options, options);
 		this.update();
 	},
 

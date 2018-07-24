@@ -3834,7 +3834,7 @@
 	  * @param options
 	  */
 		setOptions(options) {
-			this.options = options;
+			this.options = this._extendObject(this.options, options);
 			this.update();
 		},
 
