@@ -27,7 +27,8 @@ npm install leaflet-particle-dispersion --save
 This plugin has external dependencies:
 - [chroma-js](https://github.com/gka/chroma.js)
 - [heatmap.js](https://github.com/pa7/heatmap.js)
-- [leaflet-heatmap-radius](https://github.com/danwild/leaflet-heatmap-radius)
+- [turf](https://github.com/Turfjs/turf)
+- [leaflet-heatbin](https://github.com/danwild/leaflet-heatbin)
 
 To use this plugin, you either need to:
  - load these dependencies yourself (prior to loading `leaflet-particle-dispersion`); or
@@ -59,12 +60,22 @@ const particleLayer = L.particleDispersionLayer({
   // heatmap.js options for heatmap layers, see:
   // https://www.patrick-wied.at/static/heatmapjs/example-heatmap-leaflet.html
   // note that additionally; we have an enhanced version of the leaflet-heatmap.js plugin (see /src)
-  // that provides a radiusMeters option - allows you to specify a **fixed** radius in meters (instead of pixels)
+  // that provides advanced cell/radius options, see: https://github.com/danwild/leaflet-heatbin
   heatOptions: {
-    radiusMeters: 100 // example fixed radius of 100m
+
+    // example fixed radius of 1000m
+    fixedRadius: true,
+    radiusMeters: 1000,
+
+    // e.g. bin values into 250m grid cells
+    heatBin: {
+      enabled: true,
+      cellSizeKm: 0.25
+    }
   },
 
   // the intensity value to use for each point on the heatmap, default: 1
+  // only used if not heatBin.enabled
   exposureIntensity: 1,
   finalIntensity: 1
 

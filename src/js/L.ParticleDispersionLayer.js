@@ -2,7 +2,8 @@
 // dependencies
 import chroma from 'chroma-js';
 import heatmap from 'heatmap.js';
-import HeatmapOverlay from 'leaflet-heatmap-radius';
+import turf from 'turf';
+import heatBin from 'leaflet-heatbin';
 
 const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
@@ -47,6 +48,10 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 			"radiusMeters": 1000,
 			"fixedRadius": false,
 			"radius": 20,
+			"heatBin": {
+				"enabled": false,
+				"cellSizeKm": 1
+			},
 			"maxOpacity": .8,
 			// scales the radius based on map zoom
 			"scaleRadius": false,
@@ -203,7 +208,164 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		}
 	},
 
+	/**
+	 * Returns leaflet LatLngBounds of the layer
+	 */
+	getLatLngBounds () {
+
+		if (!this.options.data || !this._map) return null;
+
+		// get keys, flatten the data
+		const snapshots = this._flattened();
+
+		return L.latLngBounds(snapshots.map((s) => {
+			return this._map.wrapLatLng([s[this._pLatIndex], s[this._pLonIndex]]);
+		}));
+	},
+
 	/*------------------------------------ PRIVATE ------------------------------------------*/
+
+	_flattened () {
+		let keys = Object.keys(this.options.data);
+		let snapshots = [];
+		keys.forEach((key) => { snapshots = snapshots.concat(this.options.data[key]); });
+		return snapshots;
+	},
+
+	_flattenedPoints () {
+		let keys = Object.keys(this.options.data);
+		let snapshots = [];
+		keys.forEach((key) => { snapshots = snapshots.concat(this.options.data[key]); });
+
+		return {
+			type: "FeatureCollection",
+			features: snapshots.map((s) => {
+				return {
+					"type": "Feature",
+					"geometry": {
+						"type": "Point",
+						"coordinates": [s[this._pLonIndex], s[this._pLatIndex]]
+					},
+					"properties": {
+						"id": s[this._pidIndex],
+						"depth": s[this._pDepthIndex],
+						"age": s[this._pAgeIndex]
+					}
+				}
+			})
+		}
+	},
+
+	_computeHeatmapGrid () {
+
+		// CREATE BBOX
+		const bounds = this.getLatLngBounds();
+		// minX, minY, maxX, maxY
+		const bbox = [
+			bounds.getWest(),
+			bounds.getNorth(),
+			bounds.getEast(),
+			bounds.getSouth()
+		];
+
+		const bottomLeft = [bounds.getWest(), bounds.getSouth()];
+		const bottomRight = [bounds.getEast(), bounds.getSouth()];
+		const topLeft = [bounds.getWest(), bounds.getNorth()];
+		const topRight = [bounds.getEast(), bounds.getNorth()];
+
+		// CREATE A GRID OF CELLS
+		// GRID origin is bottomRight
+		// the indexes increment by:
+		// xCol=0, yRow upwards, then xCol=1 etc.
+		const lengthKm = 0.25;
+		const grid = turf.squareGrid(bbox, lengthKm, { units: 'kilometers' });
+
+		grid.features.reverse();
+		grid.features.forEach((f, index) => { f.properties['index'] = index; });
+		console.log(grid);
+
+		// DEBUG - plot the binning grid on map
+		//L.geoJSON(grid, {
+		//	style: function (feature) {
+		//		return {
+		//			weight: 1,
+		//			fill: false
+		//		}
+		//	},
+		//	onEachFeature: function (feature, layer) {
+		//		layer.bindTooltip(`index: ${feature.properties.index}`);
+		//	}
+		//}).addTo(this._map);
+
+		// calc XY lengths
+		const xGridLength = turf.distance(turf.point(bottomLeft), turf.point(bottomRight), { units: 'kilometers' });
+		const yGridLength = turf.distance(turf.point(bottomLeft), turf.point(topLeft), { units: 'kilometers' });
+		console.log(`xGridLenth: ${xGridLength}, yGridLenth: ${yGridLength}`);
+
+		// calc XY cell length of grid
+		const xCellLength = Math.floor(xGridLength / lengthKm);
+		const yCellLength = Math.floor(yGridLength / lengthKm);
+		const totalCells = xCellLength * yCellLength;
+		console.log(`xCellLenth: ${xCellLength}, yCellLenth: ${yCellLength}`);
+		console.log(`total cells: ${totalCells}`);
+
+		// PUT EACH SNAPSHOT INTO A CELL
+		const points = this._flattenedPoints();
+
+		// for each point get its offset from minX and minY
+		points.features.forEach((f) => {
+
+			// point dist from left
+			const xDist = turf.distance(
+				turf.point(f.geometry.coordinates),
+				turf.point([bounds.getEast(), f.geometry.coordinates[1]]),
+				{ units: 'kilometers' }
+			);
+			// point dist from bottom
+			const yDist = turf.distance(
+				turf.point(f.geometry.coordinates),
+				turf.point([f.geometry.coordinates[0], bounds.getSouth()]),
+				{ units: 'kilometers' }
+			);
+
+			// find the XY cell indices
+			let xCell = Math.round(xDist / lengthKm);
+			let yCell = Math.round(yDist / lengthKm);
+
+			// translate 2D index into 1D index
+			let i = (xCell * yCellLength) + yCell;
+			if (i >= totalCells) i = totalCells - 1;
+
+			if (grid.features[i].properties.count) {
+				grid.features[i].properties.count++
+			} else {
+				grid.features[i].properties['count'] = 1;
+			}
+
+		});
+
+		console.log('tallied grid');
+		console.log(grid);
+		let valid = 0;
+		grid.features.forEach((f) => { if (f.properties.count > 0) valid++; });
+		console.log(valid);
+
+		// USE EACH CELL AS A HEATMAP DATA POINT
+		let heatmapCells = [];
+
+		grid.features.forEach((f) => {
+			if (f.properties.count) {
+				let centroid = turf.centroid(f);
+				heatmapCells.push({
+					lat:   centroid.geometry.coordinates[1],
+					lng:   centroid.geometry.coordinates[0],
+					value: f.properties.count
+				});
+			}
+		});
+
+		return heatmapCells;
+	},
 
 	/**
 	 * Create the L.canvas renderer and custom pane to display particles
@@ -247,7 +409,7 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 			this._createColors();
 			const finalData = this._createFinalData();
-			this._particleLayer = new HeatmapOverlay(this.options.heatOptions);
+			this._particleLayer = heatBin(this.options.heatOptions);
 			this._particleLayer.addTo(this._map);
 			this._particleLayer.setData(finalData);
 		}
@@ -263,46 +425,46 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 		let finalData = [];
 
-		// get keys, moving forward in time
-		let keys = Object.keys(this.options.data);
-		keys.sort((a, b) => { return new Date(a) - new Date(b); });
-
-		// flatten the data
-		let snapshots = [];
-		keys.forEach((key) => { snapshots = snapshots.concat(this.options.data[key]); });
-
-		// get an array of uniq particles
-		let uids = [];
-		snapshots.forEach((snapshot) => {
-			if (uids.indexOf(snapshot[this._pidIndex]) === -1) uids.push(snapshot[this._pidIndex]);
-		});
-
-		// step backwards from the end of the sim collecting
-		// final snapshots for each uniq particle
-		keys.reverse();
-
-		for (let i = 0; i < keys.length; i++) {
-
-			if (uids.length === 0) break;
-
-			// check each particle in the snapshot
-			this.options.data[keys[i]].forEach((snapshot) => {
-
-				// if not recorded
-				let index = uids.indexOf(snapshot[this._pidIndex]);
-				if (index !== -1) {
-
-					// grab it, and remove it from the list
-					finalData.push({
-						lat:   snapshot[this._pLatIndex],
-						lng:   snapshot[this._pLonIndex],
-						value: this.options.finalIntensity
-					});
-					uids.splice(index, 1);
-				}
-
-			});
-		}
+		//// get keys, moving forward in time
+		//let keys = Object.keys(this.options.data);
+		//keys.sort((a, b) => { return new Date(a) - new Date(b); });
+		//
+		//// flatten the data
+		//let snapshots = [];
+		//keys.forEach((key) => { snapshots = snapshots.concat(this.options.data[key]); });
+		//
+		//// get an array of uniq particles
+		//let uids = [];
+		//snapshots.forEach((snapshot) => {
+		//	if (uids.indexOf(snapshot[this._pidIndex]) === -1) uids.push(snapshot[this._pidIndex]);
+		//});
+		//
+		//// step backwards from the end of the sim collecting
+		//// final snapshots for each uniq particle
+		//keys.reverse();
+		//
+		//for (let i = 0; i < keys.length; i++) {
+		//
+		//	if (uids.length === 0) break;
+		//
+		//	// check each particle in the snapshot
+		//	this.options.data[keys[i]].forEach((snapshot) => {
+		//
+		//		// if not recorded
+		//		let index = uids.indexOf(snapshot[this._pidIndex]);
+		//		if (index !== -1) {
+		//
+		//			// grab it, and remove it from the list
+		//			finalData.push({
+		//				lat:   snapshot[this._pLatIndex],
+		//				lng:   snapshot[this._pLonIndex],
+		//				value: this.options.finalIntensity
+		//			});
+		//			uids.splice(index, 1);
+		//		}
+		//
+		//	});
+		//}
 
 		return {
 			max: 10,
@@ -323,11 +485,12 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 		keys.forEach((key) => {
 			this.options.data[key].forEach((particle) => {
-				exposureData.push({
-					lat:   particle[this._pLatIndex],
-					lng:   particle[this._pLonIndex],
-					value: this.options.exposureIntensity
-				});
+				let point = { lat: particle[this._pLatIndex], lng: particle[this._pLonIndex] };
+				// only add intensity if not binning
+				if (!this.options.heatOptions && !this.options.heatOptions.enabled) {
+					point.value = this.options.exposureIntensity
+				}
+				exposureData.push(point);
 			});
 		});
 
@@ -335,6 +498,26 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 			max: 10,
 			data: exposureData
 		};
+
+		//const gridPoints = this._computeHeatmapGrid();
+		//console.log('gridPoints');
+		//console.log(gridPoints);
+		//
+		//return {
+		//	max: gridPoints.map((p) => { return p.value; }).reduce(function(a, b) { return Math.max(a, b); }) / 100,
+		//	data: gridPoints
+		//};
+		//const points = this._flattenedPoints();
+		//return {
+		//	max: 10, // Math.max(gridPoints.map((p) => { return p.value; })),
+		//	data: points.features.map((p) => {
+		//		return {
+		//			lat: p.geometry.coordinates[1],
+		//			lng: p.geometry.coordinates[0],
+		//			value: this.options.exposureIntensity
+		//		}
+		//	})
+		//};
 	},
 
 	/**
@@ -348,7 +531,7 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		if (this.options.data){
 			this._createColors();
 			const exposureData = this._createExposureData();
-			this._particleLayer = new HeatmapOverlay(this.options.heatOptions);
+			this._particleLayer = heatBin(this.options.heatOptions);
 			this._particleLayer.addTo(this._map);
 			this._particleLayer.setData(exposureData);
 		}

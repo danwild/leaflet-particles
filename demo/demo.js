@@ -19,8 +19,9 @@ $(document).ready(function () {
 		startFrameIndex: 10,
 		ageColorScale: ['green', 'yellow', 'red'],
 		ageDomain: [0, stepCount],
-		exposureHeatOptions: {
-			gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'}
+		heatOptions: {
+			"radius": 20,
+			//gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'}
 		}
 	});
 
@@ -40,6 +41,10 @@ $(document).ready(function () {
 			$('.slidecontainer').hide();
 			$('#keyFrameSlider').off('input', keyFrameHandler);
 		}
+	});
+
+	$('#getLatLngBounds').click(() => {
+		console.log(particleLayer.getLatLngBounds());
 	});
 
 	var keyFrameHandler = function(){

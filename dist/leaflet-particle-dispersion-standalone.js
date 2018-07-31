@@ -1,8 +1,10 @@
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
-	typeof define === 'function' && define.amd ? define(factory) :
-	(global['leaflet-particle-dispersion'] = factory());
-}(this, (function () { 'use strict';
+	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('turf')) :
+	typeof define === 'function' && define.amd ? define(['turf'], factory) :
+	(global['leaflet-particle-dispersion'] = factory(global.turf));
+}(this, (function (turf) { 'use strict';
+
+	turf = turf && turf.hasOwnProperty('default') ? turf['default'] : turf;
 
 	var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -3468,24 +3470,14 @@
 	});
 	});
 
-	var leafletHeatmapRadius = createCommonjsModule(function (module, exports) {
+	var leafletHeatbin = createCommonjsModule(function (module, exports) {
 	(function (global, factory) {
-		module.exports = factory(heatmap);
-	}(commonjsGlobal, (function (h337) {
+		module.exports = factory(heatmap, turf);
+	}(commonjsGlobal, (function (h337,turf$$1) {
 		h337 = h337 && h337.hasOwnProperty('default') ? h337['default'] : h337;
+		turf$$1 = turf$$1 && turf$$1.hasOwnProperty('default') ? turf$$1['default'] : turf$$1;
 
-		/*
-		 * Leaflet Heatmap Overlay
-		 *
-		 * Copyright (c) 2008-2016, Patrick Wied (https://www.patrick-wied.at)
-		 * Dual-licensed under the MIT (http://www.opensource.org/licenses/mit-license.php)
-		 * and the Beerware (http://en.wikipedia.org/wiki/Beerware) license.
-		 *
-		 *
-		 * 2018 <danwild@y7mail.com> Modified to handle radiusMeters.
-		 */
-
-		const HeatmapOverlay = (L.Layer ? L.Layer : L.Class).extend({
+		const HeatBin = (L.Layer ? L.Layer : L.Class).extend({
 
 			initialize: function (config) {
 				this.cfg = config;
@@ -3543,7 +3535,7 @@
 				var point = mapPane._leaflet_pos;
 
 				// reposition the layer
-				this._el.style[HeatmapOverlay.CSS_TRANSFORM] = 'translate(' + -Math.round(point.x) + 'px,' + -Math.round(point.y) + 'px)';
+				this._el.style[HeatBin.CSS_TRANSFORM] = 'translate(' + -Math.round(point.x) + 'px,' + -Math.round(point.y) + 'px)';
 
 				this._update();
 			},
@@ -3608,7 +3600,7 @@
 
 					var radius;
 
-					if (this.cfg.radiusMeters) {
+					if (this.cfg.fixedRadius && this.cfg.radiusMeters) {
 						radius = this._getPixelRadius();
 					} else if (entry.radius) {
 						radius = entry.radius * radiusMultiplier;
@@ -3695,7 +3687,7 @@
 			}
 		});
 
-		HeatmapOverlay.CSS_TRANSFORM = function () {
+		HeatBin.CSS_TRANSFORM = function () {
 			var div = document.createElement('div');
 			var props = ['transform', 'WebkitTransform', 'MozTransform', 'OTransform', 'msTransform'];
 
@@ -3708,11 +3700,11 @@
 			return props[0];
 		}();
 
-		function heatmapOverlay(options) {
-			return new HeatmapOverlay(options);
+		function heatBin(options) {
+			return new HeatBin(options);
 		}
 
-		return heatmapOverlay;
+		return heatBin;
 
 	})));
 
@@ -3761,6 +3753,10 @@
 				"radiusMeters": 1000,
 				"fixedRadius": false,
 				"radius": 20,
+				"heatBin": {
+					"enabled": false,
+					"cellSizeKm": 1
+				},
 				"maxOpacity": .8,
 				// scales the radius based on map zoom
 				"scaleRadius": false,
@@ -3917,7 +3913,158 @@
 			}
 		},
 
+		/**
+	  * Returns leaflet LatLngBounds of the layer
+	  */
+		getLatLngBounds() {
+
+			if (!this.options.data || !this._map) return null;
+
+			// get keys, flatten the data
+			const snapshots = this._flattened();
+
+			return L.latLngBounds(snapshots.map(s => {
+				return this._map.wrapLatLng([s[this._pLatIndex], s[this._pLonIndex]]);
+			}));
+		},
+
 		/*------------------------------------ PRIVATE ------------------------------------------*/
+
+		_flattened() {
+			let keys = Object.keys(this.options.data);
+			let snapshots = [];
+			keys.forEach(key => {
+				snapshots = snapshots.concat(this.options.data[key]);
+			});
+			return snapshots;
+		},
+
+		_flattenedPoints() {
+			let keys = Object.keys(this.options.data);
+			let snapshots = [];
+			keys.forEach(key => {
+				snapshots = snapshots.concat(this.options.data[key]);
+			});
+
+			return {
+				type: "FeatureCollection",
+				features: snapshots.map(s => {
+					return {
+						"type": "Feature",
+						"geometry": {
+							"type": "Point",
+							"coordinates": [s[this._pLonIndex], s[this._pLatIndex]]
+						},
+						"properties": {
+							"id": s[this._pidIndex],
+							"depth": s[this._pDepthIndex],
+							"age": s[this._pAgeIndex]
+						}
+					};
+				})
+			};
+		},
+
+		_computeHeatmapGrid() {
+
+			// CREATE BBOX
+			const bounds = this.getLatLngBounds();
+			// minX, minY, maxX, maxY
+			const bbox = [bounds.getWest(), bounds.getNorth(), bounds.getEast(), bounds.getSouth()];
+
+			const bottomLeft = [bounds.getWest(), bounds.getSouth()];
+			const bottomRight = [bounds.getEast(), bounds.getSouth()];
+			const topLeft = [bounds.getWest(), bounds.getNorth()];
+			const topRight = [bounds.getEast(), bounds.getNorth()];
+
+			// CREATE A GRID OF CELLS
+			// GRID origin is bottomRight
+			// the indexes increment by:
+			// xCol=0, yRow upwards, then xCol=1 etc.
+			const lengthKm = 0.25;
+			const grid = turf.squareGrid(bbox, lengthKm, { units: 'kilometers' });
+
+			grid.features.reverse();
+			grid.features.forEach((f, index) => {
+				f.properties['index'] = index;
+			});
+			console.log(grid);
+
+			// DEBUG - plot the binning grid on map
+			//L.geoJSON(grid, {
+			//	style: function (feature) {
+			//		return {
+			//			weight: 1,
+			//			fill: false
+			//		}
+			//	},
+			//	onEachFeature: function (feature, layer) {
+			//		layer.bindTooltip(`index: ${feature.properties.index}`);
+			//	}
+			//}).addTo(this._map);
+
+			// calc XY lengths
+			const xGridLength = turf.distance(turf.point(bottomLeft), turf.point(bottomRight), { units: 'kilometers' });
+			const yGridLength = turf.distance(turf.point(bottomLeft), turf.point(topLeft), { units: 'kilometers' });
+			console.log(`xGridLenth: ${xGridLength}, yGridLenth: ${yGridLength}`);
+
+			// calc XY cell length of grid
+			const xCellLength = Math.floor(xGridLength / lengthKm);
+			const yCellLength = Math.floor(yGridLength / lengthKm);
+			const totalCells = xCellLength * yCellLength;
+			console.log(`xCellLenth: ${xCellLength}, yCellLenth: ${yCellLength}`);
+			console.log(`total cells: ${totalCells}`);
+
+			// PUT EACH SNAPSHOT INTO A CELL
+			const points = this._flattenedPoints();
+
+			// for each point get its offset from minX and minY
+			points.features.forEach(f => {
+
+				// point dist from left
+				const xDist = turf.distance(turf.point(f.geometry.coordinates), turf.point([bounds.getEast(), f.geometry.coordinates[1]]), { units: 'kilometers' });
+				// point dist from bottom
+				const yDist = turf.distance(turf.point(f.geometry.coordinates), turf.point([f.geometry.coordinates[0], bounds.getSouth()]), { units: 'kilometers' });
+
+				// find the XY cell indices
+				let xCell = Math.round(xDist / lengthKm);
+				let yCell = Math.round(yDist / lengthKm);
+
+				// translate 2D index into 1D index
+				let i = xCell * yCellLength + yCell;
+				if (i >= totalCells) i = totalCells - 1;
+
+				if (grid.features[i].properties.count) {
+					grid.features[i].properties.count++;
+				} else {
+					grid.features[i].properties['count'] = 1;
+				}
+			});
+
+			console.log('tallied grid');
+			console.log(grid);
+			let valid = 0;
+			grid.features.forEach(f => {
+				if (f.properties.count > 0) valid++;
+			});
+			console.log(valid);
+
+			// USE EACH CELL AS A HEATMAP DATA POINT
+			let heatmapCells = [];
+
+			grid.features.forEach(f => {
+				if (f.properties.count) {
+					let centroid = turf.centroid(f);
+					heatmapCells.push({
+						lat: centroid.geometry.coordinates[1],
+						lng: centroid.geometry.coordinates[0],
+						value: f.properties.count
+					});
+				}
+			});
+
+			return heatmapCells;
+		},
 
 		/**
 	  * Create the L.canvas renderer and custom pane to display particles
@@ -3961,7 +4108,7 @@
 
 				this._createColors();
 				const finalData = this._createFinalData();
-				this._particleLayer = new leafletHeatmapRadius(this.options.heatOptions);
+				this._particleLayer = leafletHeatbin(this.options.heatOptions);
 				this._particleLayer.addTo(this._map);
 				this._particleLayer.setData(finalData);
 			}
@@ -3977,49 +4124,46 @@
 
 			let finalData = [];
 
-			// get keys, moving forward in time
-			let keys = Object.keys(this.options.data);
-			keys.sort((a, b) => {
-				return new Date(a) - new Date(b);
-			});
-
-			// flatten the data
-			let snapshots = [];
-			keys.forEach(key => {
-				snapshots = snapshots.concat(this.options.data[key]);
-			});
-
-			// get an array of uniq particles
-			let uids = [];
-			snapshots.forEach(snapshot => {
-				if (uids.indexOf(snapshot[this._pidIndex]) === -1) uids.push(snapshot[this._pidIndex]);
-			});
-
-			// step backwards from the end of the sim collecting
-			// final snapshots for each uniq particle
-			keys.reverse();
-
-			for (let i = 0; i < keys.length; i++) {
-
-				if (uids.length === 0) break;
-
-				// check each particle in the snapshot
-				this.options.data[keys[i]].forEach(snapshot => {
-
-					// if not recorded
-					let index = uids.indexOf(snapshot[this._pidIndex]);
-					if (index !== -1) {
-
-						// grab it, and remove it from the list
-						finalData.push({
-							lat: snapshot[this._pLatIndex],
-							lng: snapshot[this._pLonIndex],
-							value: this.options.finalIntensity
-						});
-						uids.splice(index, 1);
-					}
-				});
-			}
+			//// get keys, moving forward in time
+			//let keys = Object.keys(this.options.data);
+			//keys.sort((a, b) => { return new Date(a) - new Date(b); });
+			//
+			//// flatten the data
+			//let snapshots = [];
+			//keys.forEach((key) => { snapshots = snapshots.concat(this.options.data[key]); });
+			//
+			//// get an array of uniq particles
+			//let uids = [];
+			//snapshots.forEach((snapshot) => {
+			//	if (uids.indexOf(snapshot[this._pidIndex]) === -1) uids.push(snapshot[this._pidIndex]);
+			//});
+			//
+			//// step backwards from the end of the sim collecting
+			//// final snapshots for each uniq particle
+			//keys.reverse();
+			//
+			//for (let i = 0; i < keys.length; i++) {
+			//
+			//	if (uids.length === 0) break;
+			//
+			//	// check each particle in the snapshot
+			//	this.options.data[keys[i]].forEach((snapshot) => {
+			//
+			//		// if not recorded
+			//		let index = uids.indexOf(snapshot[this._pidIndex]);
+			//		if (index !== -1) {
+			//
+			//			// grab it, and remove it from the list
+			//			finalData.push({
+			//				lat:   snapshot[this._pLatIndex],
+			//				lng:   snapshot[this._pLonIndex],
+			//				value: this.options.finalIntensity
+			//			});
+			//			uids.splice(index, 1);
+			//		}
+			//
+			//	});
+			//}
 
 			return {
 				max: 10,
@@ -4040,11 +4184,12 @@
 
 			keys.forEach(key => {
 				this.options.data[key].forEach(particle => {
-					exposureData.push({
-						lat: particle[this._pLatIndex],
-						lng: particle[this._pLonIndex],
-						value: this.options.exposureIntensity
-					});
+					let point = { lat: particle[this._pLatIndex], lng: particle[this._pLonIndex] };
+					// only add intensity if not binning
+					if (!this.options.heatOptions && !this.options.heatOptions.enabled) {
+						point.value = this.options.exposureIntensity;
+					}
+					exposureData.push(point);
 				});
 			});
 
@@ -4052,6 +4197,26 @@
 				max: 10,
 				data: exposureData
 			};
+
+			//const gridPoints = this._computeHeatmapGrid();
+			//console.log('gridPoints');
+			//console.log(gridPoints);
+			//
+			//return {
+			//	max: gridPoints.map((p) => { return p.value; }).reduce(function(a, b) { return Math.max(a, b); }) / 100,
+			//	data: gridPoints
+			//};
+			//const points = this._flattenedPoints();
+			//return {
+			//	max: 10, // Math.max(gridPoints.map((p) => { return p.value; })),
+			//	data: points.features.map((p) => {
+			//		return {
+			//			lat: p.geometry.coordinates[1],
+			//			lng: p.geometry.coordinates[0],
+			//			value: this.options.exposureIntensity
+			//		}
+			//	})
+			//};
 		},
 
 		/**
@@ -4065,7 +4230,7 @@
 			if (this.options.data) {
 				this._createColors();
 				const exposureData = this._createExposureData();
-				this._particleLayer = new leafletHeatmapRadius(this.options.heatOptions);
+				this._particleLayer = leafletHeatbin(this.options.heatOptions);
 				this._particleLayer.addTo(this._map);
 				this._particleLayer.setData(exposureData);
 			}
