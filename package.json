@@ -1,6 +1,6 @@
 {
 	"name": "leaflet-particle-dispersion",
-	"version": "0.3.2",
+	"version": "0.3.3",
 	"description": "Visualise dispersion of particles on a leaflet map.",
 	"main": "dist/leaflet-particle-dispersion.js",
 	"scripts": {
@@ -28,7 +28,7 @@
 	"license": "MIT",
 	"dependencies": {
 		"chroma-js": "^1.3.4",
-		"leaflet-heatbin": "^0.0.2"
+		"leaflet-heatbin": "^0.0.3"
 	},
 	"devDependencies": {
 		"babel-preset-es2015": "^6.9.0",
