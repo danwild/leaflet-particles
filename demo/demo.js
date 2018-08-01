@@ -16,12 +16,31 @@ $(document).ready(function () {
 
 	var particleLayer = L.particleDispersionLayer({
 		data: data,
+		//dataFormat: {
+		//	idIndex:    0,
+		//	lonIndex:   0,
+		//	latIndex:   1,
+		//	depthIndex: 2,
+		//	ageIndex:   0
+		//},
 		startFrameIndex: 10,
 		ageColorScale: ['green', 'yellow', 'red'],
 		ageDomain: [0, stepCount],
 		heatOptions: {
-			"radius": 20,
-			//gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'}
+			radius: 20,
+			fixedRadius: false,
+			radiusMeters: 500,
+			heatBin: {
+				enabled: true,
+				cellSizeKm: 0.25,
+				maxFactor: 0.1,
+				showBinGrid: false
+			},
+			useLocalExtrema: true,
+			onExtremaChange: function(data) {
+				console.log(data);
+			}
+			//gradient: {0.4: 'blue', 0.65: 'green', 1: 'red'}
 		}
 	});
 

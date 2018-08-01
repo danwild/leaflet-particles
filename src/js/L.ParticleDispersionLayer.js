@@ -1,33 +1,19 @@
 
 // dependencies
 import chroma from 'chroma-js';
-import heatmap from 'heatmap.js';
-import turf from 'turf';
 import heatBin from 'leaflet-heatbin';
 
 const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
-	// particle data indices
-	_pidIndex:    0,
-	_pLatIndex:   1,
-	_pLonIndex:   0,
-	_pDepthIndex: 2,
-	_pAgeIndex:   3,
-	//_pidIndex:    0,
-	//_pLatIndex:   1 + 1,
-	//_pLonIndex:   0 + 1,
-	//_pDepthIndex: 2 + 1,
-	//_pAgeIndex:   3 + 1,
-
 	// misc
 	_particleLayer: null,
-	_frameIndex:   0,
-	_markers:      [],
-	_colors:       null,
+	_frameIndex:    0,
+	_markers:       [],
+	_colors:        null,
 
 	/*------------------------------------ LEAFLET SPECIFIC ------------------------------------------*/
 
-	_active: false,
+	_active:   false,
 	_map:      null,
 	// the L.canvas renderer
 	_renderer: null,
@@ -37,6 +23,13 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 	// user options
 	options: {
 		data:            null,
+		dataFormat: {
+			idIndex:    0,
+			lonIndex:   1,
+			latIndex:   2,
+			depthIndex: 3,
+			ageIndex:   4
+		},
 		displayMode:     '',
 		startFrameIndex: 0,
 		ageColorScale:   null,
@@ -192,13 +185,13 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		for (let i = 0; i < frame.length; i++) {
 
 			const particle = frame[i];
-			const pos = self._map.wrapLatLng([particle[self._pLatIndex], particle[self._pLonIndex]]);
+			const pos = self._map.wrapLatLng([particle[self.options.dataFormat.latIndex], particle[self.options.dataFormat.lonIndex]]);
 			let marker = L.circleMarker(pos, {
 				renderer:    self._renderer,
 				stroke:      false,
 				fillOpacity: 0.3,
 				radius: 8,
-				fillColor:   this._colors(particle[self._pAgeIndex]).hex(),
+				fillColor:   this._colors(particle[self.options.dataFormat.ageIndex]).hex(),
 				_feature:    particle
 
 			});
@@ -219,7 +212,7 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		const snapshots = this._flattened();
 
 		return L.latLngBounds(snapshots.map((s) => {
-			return this._map.wrapLatLng([s[this._pLatIndex], s[this._pLonIndex]]);
+			return this._map.wrapLatLng([s[this.options.dataFormat.latIndex], s[this.options.dataFormat.lonIndex]]);
 		}));
 	},
 
@@ -274,7 +267,7 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 			this._createColors();
 			const finalData = this._createFinalData();
-			this._particleLayer = heatBin(this.options.heatOptions);
+			this._particleLayer = L.heatBin(this.options.heatOptions);
 			this._particleLayer.addTo(this._map);
 			this._particleLayer.setData(finalData);
 		}
@@ -290,46 +283,46 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 		let finalData = [];
 
-		//// get keys, moving forward in time
-		//let keys = Object.keys(this.options.data);
-		//keys.sort((a, b) => { return new Date(a) - new Date(b); });
-		//
-		//// flatten the data
-		//let snapshots = [];
-		//keys.forEach((key) => { snapshots = snapshots.concat(this.options.data[key]); });
-		//
-		//// get an array of uniq particles
-		//let uids = [];
-		//snapshots.forEach((snapshot) => {
-		//	if (uids.indexOf(snapshot[this._pidIndex]) === -1) uids.push(snapshot[this._pidIndex]);
-		//});
-		//
-		//// step backwards from the end of the sim collecting
-		//// final snapshots for each uniq particle
-		//keys.reverse();
-		//
-		//for (let i = 0; i < keys.length; i++) {
-		//
-		//	if (uids.length === 0) break;
-		//
-		//	// check each particle in the snapshot
-		//	this.options.data[keys[i]].forEach((snapshot) => {
-		//
-		//		// if not recorded
-		//		let index = uids.indexOf(snapshot[this._pidIndex]);
-		//		if (index !== -1) {
-		//
-		//			// grab it, and remove it from the list
-		//			finalData.push({
-		//				lat:   snapshot[this._pLatIndex],
-		//				lng:   snapshot[this._pLonIndex],
-		//				value: this.options.finalIntensity
-		//			});
-		//			uids.splice(index, 1);
-		//		}
-		//
-		//	});
-		//}
+		// get keys, moving forward in time
+		let keys = Object.keys(this.options.data);
+		keys.sort((a, b) => { return new Date(a) - new Date(b); });
+
+		// flatten the data
+		let snapshots = [];
+		keys.forEach((key) => { snapshots = snapshots.concat(this.options.data[key]); });
+
+		// get an array of uniq particles
+		let uids = [];
+		snapshots.forEach((snapshot) => {
+			if (uids.indexOf(snapshot[this.options.dataFormat.idIndex]) === -1) uids.push(snapshot[this.options.dataFormat.idIndex]);
+		});
+
+		// step backwards from the end of the sim collecting
+		// final snapshots for each uniq particle
+		keys.reverse();
+
+		for (let i = 0; i < keys.length; i++) {
+
+			if (uids.length === 0) break;
+
+			// check each particle in the snapshot
+			this.options.data[keys[i]].forEach((snapshot) => {
+
+				// if not recorded
+				let index = uids.indexOf(snapshot[this.options.dataFormat.idIndex]);
+				if (index !== -1) {
+
+					// grab it, and remove it from the list
+					finalData.push({
+						lat:   snapshot[this.options.dataFormat.latIndex],
+						lng:   snapshot[this.options.dataFormat.lonIndex],
+						value: this.options.finalIntensity
+					});
+					uids.splice(index, 1);
+				}
+
+			});
+		}
 
 		return {
 			max: 10,
@@ -350,39 +343,15 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 		keys.forEach((key) => {
 			this.options.data[key].forEach((particle) => {
-				let point = { lat: particle[this._pLatIndex], lng: particle[this._pLonIndex] };
-				// only add intensity if not binning
-				if (!this.options.heatOptions && !this.options.heatOptions.enabled) {
-					point.value = this.options.exposureIntensity
-				}
-				exposureData.push(point);
+				exposureData.push({
+					lat:   particle[this.options.dataFormat.latIndex],
+					lng:   particle[this.options.dataFormat.lonIndex],
+					value: this.options.exposureIntensity
+				});
 			});
 		});
 
-		return {
-			max: 10,
-			data: exposureData
-		};
-
-		//const gridPoints = this._computeHeatmapGrid();
-		//console.log('gridPoints');
-		//console.log(gridPoints);
-		//
-		//return {
-		//	max: gridPoints.map((p) => { return p.value; }).reduce(function(a, b) { return Math.max(a, b); }) / 100,
-		//	data: gridPoints
-		//};
-		//const points = this._flattenedPoints();
-		//return {
-		//	max: 10, // Math.max(gridPoints.map((p) => { return p.value; })),
-		//	data: points.features.map((p) => {
-		//		return {
-		//			lat: p.geometry.coordinates[1],
-		//			lng: p.geometry.coordinates[0],
-		//			value: this.options.exposureIntensity
-		//		}
-		//	})
-		//};
+		return { max: 10, data: exposureData };
 	},
 
 	/**
@@ -396,7 +365,8 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		if (this.options.data){
 			this._createColors();
 			const exposureData = this._createExposureData();
-			this._particleLayer = heatBin(this.options.heatOptions);
+			console.log(exposureData);
+			this._particleLayer = L.heatBin(this.options.heatOptions);
 			this._particleLayer.addTo(this._map);
 			this._particleLayer.setData(exposureData);
 		}

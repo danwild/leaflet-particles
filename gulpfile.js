@@ -31,8 +31,7 @@ gulp.task('scripts', function() {
 		// i.e. don't package these with our exported module
 		external: [
 			'chroma-js',
-			'heatmap.js',
-			'leaflet-heatmap-radius'
+			'leaflet-heatbin'
 		]
 	})
 
@@ -72,8 +71,7 @@ gulp.task('bundle', function() {
 					browser: true
 				}),
 				commonjs({
-					include:
-						'node_modules/**'
+					include: 'node_modules/**'
 				})
 			]
 		})
@@ -87,7 +85,6 @@ gulp.task('bundle', function() {
 				sourcemap: true
 			});
 		});
-
 });
 
 gulp.task('concatCss', function () {

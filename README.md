@@ -1,6 +1,6 @@
 # leaflet-particle-dispersion [![NPM version][npm-image]][npm-url] [![NPM Downloads][npm-downloads-image]][npm-url]
 
-**ALPHA** plugin visualise dispersion of particles on a leaflet map.
+**VERY ALPHA** plugin visualise dispersion of particles on a leaflet map.
 
 Creates a custom leaflet layer with display modes:
 - **Final particle distribution:**
@@ -26,8 +26,6 @@ npm install leaflet-particle-dispersion --save
 
 This plugin has external dependencies:
 - [chroma-js](https://github.com/gka/chroma.js)
-- [heatmap.js](https://github.com/pa7/heatmap.js)
-- [turf](https://github.com/Turfjs/turf)
 - [leaflet-heatbin](https://github.com/danwild/leaflet-heatbin)
 
 To use this plugin, you either need to:
@@ -44,6 +42,15 @@ const particleLayer = L.particleDispersionLayer({
 
   // an array of keyframes, default: null
   data: data,
+
+  // define the indices of your data point arrays, default:
+  dataFormat: {
+    idIndex:    0,
+    lonIndex:   1,
+    latIndex:   2,
+    depthIndex: 3,
+    ageIndex:   4
+  },
 
   // one of: 'FINAL', 'EXPOSURE', 'KEYFRAME', default: null
   displayMode: mode,

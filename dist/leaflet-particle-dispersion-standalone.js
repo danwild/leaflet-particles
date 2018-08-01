@@ -3479,6 +3479,8 @@
 
 		const HeatBin = (L.Layer ? L.Layer : L.Class).extend({
 
+			/*--------------------------------------------- LEAFLET HOOKS ---------------------------------------------*/
+
 			initialize: function (config) {
 				this.cfg = config;
 				this._el = L.DomUtil.create('div', 'leaflet-zoom-hide');
@@ -3522,43 +3524,23 @@
 			onRemove: function (map) {
 				// remove layer's DOM elements and listeners
 				map.getPanes().overlayPane.removeChild(this._el);
-
 				map.off('moveend', this._reset, this);
 			},
 
-			_draw: function () {
-				if (!this._map) {
-					return;
-				}
+			/*--------------------------------------------- PUBLIC ---------------------------------------------*/
 
-				var mapPane = this._map.getPanes().mapPane;
-				var point = mapPane._leaflet_pos;
-
-				// reposition the layer
-				this._el.style[HeatBin.CSS_TRANSFORM] = 'translate(' + -Math.round(point.x) + 'px,' + -Math.round(point.y) + 'px)';
-
-				this._update();
+			/**
+		  * Returns leaflet LatLngBounds of the layer data
+		  */
+			getLatLngBounds(data) {
+				data = data || this._data;
+				if (data.length < 1) return null;
+				return L.latLngBounds(data.map(d => {
+					return [d[this._latField], d[this._lngField]];
+				}));
 			},
 
-			_getPixelRadius: function () {
-
-				var centerLatLng = this._map.getCenter();
-				var pointC = this._map.latLngToContainerPoint(centerLatLng);
-				var pointX = [pointC.x + 1, pointC.y];
-
-				// convert containerpoints to latlng's
-				var latLngC = this._map.containerPointToLatLng(pointC);
-				var latLngX = this._map.containerPointToLatLng(pointX);
-
-				// Assuming distance only depends on latitude
-				var distanceX = latLngC.distanceTo(latLngX);
-				// 100 meters is the fixed distance here
-				var pixels = this.cfg.radiusMeters / distanceX;
-
-				return pixels >= 1 ? pixels : 1;
-			},
-
-			_update: function () {
+			update: function () {
 
 				var bounds, zoom, scale;
 				var generatedData = { max: this._max, min: this._min, data: [] };
@@ -3618,58 +3600,82 @@
 				generatedData.data = latLngPoints;
 				this._heatmap.setData(generatedData);
 			},
-			setData: function (data) {
-				this._max = data.max || this._max;
-				this._min = data.min || this._min;
-				var latField = this.cfg.latField || 'lat';
-				var lngField = this.cfg.lngField || 'lng';
-				var valueField = this.cfg.valueField || 'value';
 
-				// transform data to latlngs
-				var data = data.data;
+			setData: function (options) {
+
+				this._max = options.max || this._max;
+				this._min = options.min || this._min;
+				this._maxFactor = this.cfg.heatBin && this.cfg.heatBin.maxFactor ? this.cfg.heatBin.maxFactor : 1;
+				this._latField = this.cfg.latField || 'lat';
+				this._lngField = this.cfg.lngField || 'lng';
+				this._valueField = this.cfg.valueField || 'value';
+				const self = this;
+				var data = options.data;
+
+				// compute grid if we're binning
+				if (data.length > 0 && this.cfg.heatBin && this.cfg.heatBin.enabled) {
+					this._cellSizeKm = this.cfg.heatBin.cellSizeKm || 5;
+					data = this._computeHeatmapGrid(data);
+					this._max = data.map(d => {
+						return d.value;
+					}).reduce(function (a, b) {
+						return Math.max(a, b);
+					}) * this._maxFactor;
+				}
+
 				var len = data.length;
 				var d = [];
 
+				// transform data to latlngs
 				while (len--) {
 					var entry = data[len];
-					var latlng = new L.LatLng(entry[latField], entry[lngField]);
+					var latlng = new L.LatLng(entry[self._latField], entry[self._lngField]);
 					var dataObj = { latlng: latlng };
-					dataObj[valueField] = entry[valueField];
+					dataObj[self._valueField] = entry[self._valueField];
 					if (entry.radius) {
 						dataObj.radius = entry.radius;
 					}
 					d.push(dataObj);
 				}
-				this._data = d;
 
+				this._data = d;
 				this._draw();
 			},
-			// experimential... not ready.
-			addData: function (pointOrArray) {
-				if (pointOrArray.length > 0) {
-					var len = pointOrArray.length;
-					while (len--) {
-						this.addData(pointOrArray[len]);
-					}
-				} else {
-					var latField = this.cfg.latField || 'lat';
-					var lngField = this.cfg.lngField || 'lng';
-					var valueField = this.cfg.valueField || 'value';
-					var entry = pointOrArray;
-					var latlng = new L.LatLng(entry[latField], entry[lngField]);
-					var dataObj = { latlng: latlng };
 
-					dataObj[valueField] = entry[valueField];
-					this._max = Math.max(this._max, dataObj[valueField]);
-					this._min = Math.min(this._min, dataObj[valueField]);
+			/*--------------------------------------------- PRIVATE ---------------------------------------------*/
 
-					if (entry.radius) {
-						dataObj.radius = entry.radius;
-					}
-					this._data.push(dataObj);
-					this._draw();
+			_draw: function () {
+				if (!this._map) {
+					return;
 				}
+
+				var mapPane = this._map.getPanes().mapPane;
+				var point = mapPane._leaflet_pos;
+
+				// reposition the layer
+				this._el.style[HeatBin.CSS_TRANSFORM] = 'translate(' + -Math.round(point.x) + 'px,' + -Math.round(point.y) + 'px)';
+
+				this.update();
 			},
+
+			_getPixelRadius: function () {
+
+				var centerLatLng = this._map.getCenter();
+				var pointC = this._map.latLngToContainerPoint(centerLatLng);
+				var pointX = [pointC.x + 1, pointC.y];
+
+				// convert containerpoints to latlng's
+				var latLngC = this._map.containerPointToLatLng(pointC);
+				var latLngX = this._map.containerPointToLatLng(pointX);
+
+				// Assuming distance only depends on latitude
+				var distanceX = latLngC.distanceTo(latLngX);
+				// 100 meters is the fixed distance here
+				var pixels = this.cfg.radiusMeters / distanceX;
+
+				return pixels >= 1 ? pixels : 1;
+			},
+
 			_reset: function () {
 				this._origin = this._map.layerPointToLatLng(new L.Point(0, 0));
 
@@ -3684,6 +3690,109 @@
 					this._heatmap._renderer.setDimensions(this._width, this._height);
 				}
 				this._draw();
+			},
+
+			_computeHeatmapGrid(data) {
+
+				// CREATE BBOX
+				const bounds = this.getLatLngBounds(data);
+				if (!bounds) return false;
+
+				// minX, minY, maxX, maxY
+				const bbox = [bounds.getWest(), bounds.getNorth(), bounds.getEast(), bounds.getSouth()];
+
+				const bottomLeft = [bounds.getWest(), bounds.getSouth()];
+				const bottomRight = [bounds.getEast(), bounds.getSouth()];
+				const topLeft = [bounds.getWest(), bounds.getNorth()];
+
+				// CREATE A GRID OF CELLS
+				// GRID origin is bottomRight
+				// the indexes increment by:
+				// xCol=0, yRow upwards, then xCol=1 etc.
+				const lengthKm = this._cellSizeKm;
+				const grid = turf$$1.squareGrid(bbox, lengthKm, { units: 'kilometers' });
+
+				grid.features.reverse();
+				grid.features.forEach((f, index) => {
+					f.properties['index'] = index;
+				});
+				console.log(grid);
+
+				// DEBUG - plot the binning grid on map
+				if (this.cfg.heatBin && this.cfg.heatBin.showBinGrid) {
+					L.geoJSON(grid, {
+						style: function (feature) {
+							return {
+								weight: 1,
+								fill: false
+							};
+						},
+						onEachFeature: function (feature, layer) {
+							layer.bindTooltip(`cell index: ${feature.properties.index}`);
+						}
+					}).addTo(this._map);
+				}
+
+				// calc XY lengths
+				const xGridLength = turf$$1.distance(turf$$1.point(bottomLeft), turf$$1.point(bottomRight), { units: 'kilometers' });
+				const yGridLength = turf$$1.distance(turf$$1.point(bottomLeft), turf$$1.point(topLeft), { units: 'kilometers' });
+				console.log(`xGridLenth: ${xGridLength}, yGridLenth: ${yGridLength}`);
+
+				// calc XY cell length of grid
+				const xCellLength = Math.floor(xGridLength / lengthKm);
+				const yCellLength = Math.floor(yGridLength / lengthKm);
+				const totalCells = xCellLength * yCellLength;
+				console.log(`xCellLenth: ${xCellLength}, yCellLenth: ${yCellLength}`);
+				console.log(`total cells: ${totalCells}`);
+
+				// PUT EACH POINT INTO A CELL
+				const points = data.map(d => {
+					return {
+						lat: d[this._latField],
+						lng: d[this._lngField]
+					};
+				});
+
+				// for each point get its offset from minX and minY
+				points.forEach(p => {
+
+					// point dist from left
+					const xDist = turf$$1.distance(turf$$1.point([p.lng, p.lat]), turf$$1.point([bounds.getEast(), p.lat]), { units: 'kilometers' });
+					// point dist from bottom
+					const yDist = turf$$1.distance(turf$$1.point([p.lng, p.lat]), turf$$1.point([p.lng, bounds.getSouth()]), { units: 'kilometers' });
+
+					// find the XY cell indices
+					let xCell = Math.round(xDist / lengthKm);
+					let yCell = Math.round(yDist / lengthKm);
+
+					// translate 2D index into 1D index
+					let i = xCell * yCellLength + yCell;
+					if (i >= totalCells) i = totalCells - 1;
+
+					if (grid.features[i].properties.count) {
+						grid.features[i].properties.count++;
+					} else {
+						grid.features[i].properties['count'] = 1;
+					}
+				});
+				grid.features.forEach(f => {
+					if (f.properties.count > 0) ;
+				});
+
+				// USE EACH CELL AS A HEATMAP DATA POINT
+				let heatmapCells = [];
+				grid.features.forEach(f => {
+					if (f.properties.count) {
+						let centroid = turf$$1.centroid(f);
+						heatmapCells.push({
+							lat: centroid.geometry.coordinates[1],
+							lng: centroid.geometry.coordinates[0],
+							value: f.properties.count
+						});
+					}
+				});
+
+				return heatmapCells;
 			}
 		});
 
@@ -3700,29 +3809,19 @@
 			return props[0];
 		}();
 
-		function heatBin(options) {
+		L.heatBin = function (options) {
 			return new HeatBin(options);
-		}
+		};
 
-		return heatBin;
+		var L_HeatBin = L.heatBin;
+
+		return L_HeatBin;
 
 	})));
 
 	});
 
 	const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
-
-		// particle data indices
-		_pidIndex: 0,
-		_pLatIndex: 1,
-		_pLonIndex: 0,
-		_pDepthIndex: 2,
-		_pAgeIndex: 3,
-		//_pidIndex:    0,
-		//_pLatIndex:   1 + 1,
-		//_pLonIndex:   0 + 1,
-		//_pDepthIndex: 2 + 1,
-		//_pAgeIndex:   3 + 1,
 
 		// misc
 		_particleLayer: null,
@@ -3742,6 +3841,13 @@
 		// user options
 		options: {
 			data: null,
+			dataFormat: {
+				idIndex: 0,
+				lonIndex: 1,
+				latIndex: 2,
+				depthIndex: 3,
+				ageIndex: 4
+			},
 			displayMode: '',
 			startFrameIndex: 0,
 			ageColorScale: null,
@@ -3897,13 +4003,13 @@
 			for (let i = 0; i < frame.length; i++) {
 
 				const particle = frame[i];
-				const pos = self._map.wrapLatLng([particle[self._pLatIndex], particle[self._pLonIndex]]);
+				const pos = self._map.wrapLatLng([particle[self.options.dataFormat.latIndex], particle[self.options.dataFormat.lonIndex]]);
 				let marker = L.circleMarker(pos, {
 					renderer: self._renderer,
 					stroke: false,
 					fillOpacity: 0.3,
 					radius: 8,
-					fillColor: this._colors(particle[self._pAgeIndex]).hex(),
+					fillColor: this._colors(particle[self.options.dataFormat.ageIndex]).hex(),
 					_feature: particle
 
 				});
@@ -3924,7 +4030,7 @@
 			const snapshots = this._flattened();
 
 			return L.latLngBounds(snapshots.map(s => {
-				return this._map.wrapLatLng([s[this._pLatIndex], s[this._pLonIndex]]);
+				return this._map.wrapLatLng([s[this.options.dataFormat.latIndex], s[this.options.dataFormat.lonIndex]]);
 			}));
 		},
 
@@ -3981,7 +4087,7 @@
 
 				this._createColors();
 				const finalData = this._createFinalData();
-				this._particleLayer = leafletHeatbin(this.options.heatOptions);
+				this._particleLayer = L.heatBin(this.options.heatOptions);
 				this._particleLayer.addTo(this._map);
 				this._particleLayer.setData(finalData);
 			}
@@ -3997,46 +4103,49 @@
 
 			let finalData = [];
 
-			//// get keys, moving forward in time
-			//let keys = Object.keys(this.options.data);
-			//keys.sort((a, b) => { return new Date(a) - new Date(b); });
-			//
-			//// flatten the data
-			//let snapshots = [];
-			//keys.forEach((key) => { snapshots = snapshots.concat(this.options.data[key]); });
-			//
-			//// get an array of uniq particles
-			//let uids = [];
-			//snapshots.forEach((snapshot) => {
-			//	if (uids.indexOf(snapshot[this._pidIndex]) === -1) uids.push(snapshot[this._pidIndex]);
-			//});
-			//
-			//// step backwards from the end of the sim collecting
-			//// final snapshots for each uniq particle
-			//keys.reverse();
-			//
-			//for (let i = 0; i < keys.length; i++) {
-			//
-			//	if (uids.length === 0) break;
-			//
-			//	// check each particle in the snapshot
-			//	this.options.data[keys[i]].forEach((snapshot) => {
-			//
-			//		// if not recorded
-			//		let index = uids.indexOf(snapshot[this._pidIndex]);
-			//		if (index !== -1) {
-			//
-			//			// grab it, and remove it from the list
-			//			finalData.push({
-			//				lat:   snapshot[this._pLatIndex],
-			//				lng:   snapshot[this._pLonIndex],
-			//				value: this.options.finalIntensity
-			//			});
-			//			uids.splice(index, 1);
-			//		}
-			//
-			//	});
-			//}
+			// get keys, moving forward in time
+			let keys = Object.keys(this.options.data);
+			keys.sort((a, b) => {
+				return new Date(a) - new Date(b);
+			});
+
+			// flatten the data
+			let snapshots = [];
+			keys.forEach(key => {
+				snapshots = snapshots.concat(this.options.data[key]);
+			});
+
+			// get an array of uniq particles
+			let uids = [];
+			snapshots.forEach(snapshot => {
+				if (uids.indexOf(snapshot[this.options.dataFormat.idIndex]) === -1) uids.push(snapshot[this.options.dataFormat.idIndex]);
+			});
+
+			// step backwards from the end of the sim collecting
+			// final snapshots for each uniq particle
+			keys.reverse();
+
+			for (let i = 0; i < keys.length; i++) {
+
+				if (uids.length === 0) break;
+
+				// check each particle in the snapshot
+				this.options.data[keys[i]].forEach(snapshot => {
+
+					// if not recorded
+					let index = uids.indexOf(snapshot[this.options.dataFormat.idIndex]);
+					if (index !== -1) {
+
+						// grab it, and remove it from the list
+						finalData.push({
+							lat: snapshot[this.options.dataFormat.latIndex],
+							lng: snapshot[this.options.dataFormat.lonIndex],
+							value: this.options.finalIntensity
+						});
+						uids.splice(index, 1);
+					}
+				});
+			}
 
 			return {
 				max: 10,
@@ -4057,39 +4166,15 @@
 
 			keys.forEach(key => {
 				this.options.data[key].forEach(particle => {
-					let point = { lat: particle[this._pLatIndex], lng: particle[this._pLonIndex] };
-					// only add intensity if not binning
-					if (!this.options.heatOptions && !this.options.heatOptions.enabled) {
-						point.value = this.options.exposureIntensity;
-					}
-					exposureData.push(point);
+					exposureData.push({
+						lat: particle[this.options.dataFormat.latIndex],
+						lng: particle[this.options.dataFormat.lonIndex],
+						value: this.options.exposureIntensity
+					});
 				});
 			});
 
-			return {
-				max: 10,
-				data: exposureData
-			};
-
-			//const gridPoints = this._computeHeatmapGrid();
-			//console.log('gridPoints');
-			//console.log(gridPoints);
-			//
-			//return {
-			//	max: gridPoints.map((p) => { return p.value; }).reduce(function(a, b) { return Math.max(a, b); }) / 100,
-			//	data: gridPoints
-			//};
-			//const points = this._flattenedPoints();
-			//return {
-			//	max: 10, // Math.max(gridPoints.map((p) => { return p.value; })),
-			//	data: points.features.map((p) => {
-			//		return {
-			//			lat: p.geometry.coordinates[1],
-			//			lng: p.geometry.coordinates[0],
-			//			value: this.options.exposureIntensity
-			//		}
-			//	})
-			//};
+			return { max: 10, data: exposureData };
 		},
 
 		/**
@@ -4103,7 +4188,8 @@
 			if (this.options.data) {
 				this._createColors();
 				const exposureData = this._createExposureData();
-				this._particleLayer = leafletHeatbin(this.options.heatOptions);
+				console.log(exposureData);
+				this._particleLayer = L.heatBin(this.options.heatOptions);
 				this._particleLayer.addTo(this._map);
 				this._particleLayer.setData(exposureData);
 			}
