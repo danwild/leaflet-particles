@@ -256,7 +256,7 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		if (!this._active || !this._particleLayer || !this._particleLayer.getGridInfo) return null;
 		const gridInfo = this.getGridInfo();
 		const ids = this.getParticleIds();
-		if (!gridInfo.minCellCount) return null;
+		if (!gridInfo.hasOwnProperty('maxCellCount')) return null;
 		let minPercent = gridInfo.minCellCount / ids.length;
 		return {
 			min: minPercent >= 0 ? minPercent : 0,
