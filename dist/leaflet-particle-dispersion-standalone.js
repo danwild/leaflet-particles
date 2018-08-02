@@ -3669,7 +3669,10 @@
 					bbox: this._gridBBOX,
 					xCellLength: this._xCellLength,
 					yCellLength: this._yCellLength,
-					totalCellLength: this._totalGridCells
+					totalCellLength: this._totalGridCells,
+					maxFactor: this._maxFactor,
+					minCellCount: this._minCellCount,
+					maxCellCount: this._maxCellCount
 				};
 			},
 
@@ -3784,7 +3787,8 @@
 				const points = data.map(d => {
 					return {
 						lat: d[this._latField],
-						lng: d[this._lngField]
+						lng: d[this._lngField],
+						uid: d['uid'] || null
 					};
 				});
 
@@ -3808,22 +3812,36 @@
 					let i = xCell * this._yCellLength + yCell;
 					if (i >= this._totalGridCells) return i = this._totalGridCells - 1;
 
+					// only count unique if using uid
 					if (grid.features[i].properties.count) {
-						grid.features[i].properties.count++;
+						if (p.uid !== null && grid.features[i].properties.uids.indexOf(p.uid) === -1) {
+							grid.features[i].properties.count++;
+							grid.features[i].properties.uids.push(p.uid);
+						}
+						// add first count
 					} else {
 						grid.features[i].properties['count'] = 1;
+						if (p.uid !== null) grid.features[i].properties.uids = [p.uid];
 					}
 				});
 
 				// USE EACH CELL AS A HEATMAP DATA POINT
 				let heatmapCells = [];
+
+				this._minCellCount = 0;
+				this._maxCellCount = 0;
+
 				grid.features.forEach(f => {
 					if (f.properties.count) {
 						let centroid = turf.centroid(f);
+
+						if (f.properties.count < this._minCellCount) this._minCellCount = f.properties.count;
+						if (f.properties.count > this._maxCellCount) this._maxCellCount = f.properties.count;
+
 						heatmapCells.push({
 							lat: centroid.geometry.coordinates[1],
 							lng: centroid.geometry.coordinates[0],
-							value: f.properties.count
+							value: f.properties.count + 1
 						});
 					}
 				});
@@ -4070,6 +4088,54 @@
 			}));
 		},
 
+		/**
+	  * A wrapper function for `L.heatBin.getGridInfo` to get information about the grid used for binning
+	  * @returns {*}
+	  */
+		getGridInfo() {
+			if (!this._active || !this._particleLayer || !this._particleLayer.getGridInfo) return null;
+			return this._particleLayer.getGridInfo();
+		},
+
+		/**
+	  * Return readonly particleLayer
+	  * @returns {null}
+	  */
+		getParticleLayer() {
+			return this._particleLayer;
+		},
+
+		/**
+	  * Return an array of unique particle ID's
+	  * @returns {Array}
+	  */
+		getParticleIds() {
+			const snapshots = this._flattened();
+			// get an array of uniq particles
+			let uids = [];
+			snapshots.forEach(snapshot => {
+				if (uids.indexOf(snapshot[this.options.dataFormat.idIndex]) === -1) uids.push(snapshot[this.options.dataFormat.idIndex]);
+			});
+			return uids;
+		},
+
+		/**
+	  * Return the min/max percent range on a heatBin layer with unique ID's
+	  * i.e. what is the min/max percent of unique data points that have touched any grid cell
+	  * @returns {*}
+	  */
+		getUniquePercentRange() {
+			if (!this._active || !this._particleLayer || !this._particleLayer.getGridInfo) return null;
+			const gridInfo = this.getGridInfo();
+			const ids = this.getParticleIds();
+			if (!gridInfo.minCellCount) return null;
+			let minPercent = gridInfo.minCellCount / ids.length;
+			return {
+				min: minPercent >= 0 ? minPercent : 0,
+				max: gridInfo.maxCellCount / ids.length * 100
+			};
+		},
+
 		/*------------------------------------ PRIVATE ------------------------------------------*/
 
 		_flattened() {
@@ -4205,12 +4271,13 @@
 					exposureData.push({
 						lat: particle[this.options.dataFormat.latIndex],
 						lng: particle[this.options.dataFormat.lonIndex],
+						uid: particle[this.options.dataFormat.idIndex],
 						value: this.options.exposureIntensity
 					});
 				});
 			});
 
-			return { max: 10, data: exposureData };
+			return { min: 0, max: 10, data: exposureData };
 		},
 
 		/**

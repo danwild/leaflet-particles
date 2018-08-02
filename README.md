@@ -111,6 +111,9 @@ particleLayer.setFrameIndex(index);
 |`setDisplayMode`|`mode: {String}`|one of: `FINAL`, `EXPOSURE`, `KEYFRAME`|
 |`getDisplayMode`||Returns the current `displayMode`|
 |`setFrameIndex`|`index: {Number}`|display the particles at the given frame index|
+|`getGridInfo`||A wrapper function for `L.heatBin.getGridInfo` to get information about the grid used for binning|
+|`getGridInfo`||A wrapper function for `L.heatBin.getGridInfo` to get information about the grid used for binning|
+|`getParticleLayer`||get the current underlying map layer used for drawing **READONLY**|
 
 ## data format
 
