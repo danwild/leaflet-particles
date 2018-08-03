@@ -90,6 +90,7 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 		this._renderer = null;
 		this._particleLayer = null;
 		this._active = false;
+		if (this.options.onRemove) this.options.onRemove();
 	},
 
 	/*------------------------------------ PUBLIC ------------------------------------------*/

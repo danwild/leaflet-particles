@@ -84,7 +84,10 @@ const particleLayer = L.particleDispersionLayer({
   // the intensity value to use for each point on the heatmap, default: 1
   // only used if not heatBin.enabled
   exposureIntensity: 1,
-  finalIntensity: 1
+  finalIntensity: 1,
+
+  // callback when layer is removed, use for cleanup
+  onRemove: function(){}
 
 });
 
