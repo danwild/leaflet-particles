@@ -1,4 +1,4 @@
-# leaflet-particle-dispersion [![NPM version][npm-image]][npm-url] [![NPM Downloads][npm-downloads-image]][npm-url]
+# leaflet-particles [![NPM version][npm-image]][npm-url] [![NPM Downloads][npm-downloads-image]][npm-url]
 
 **VERY ALPHA** plugin visualise dispersion of particles on a leaflet map.
 
@@ -19,7 +19,7 @@ Creates a custom leaflet layer with display modes:
 ## install
 Assuming you have node and npm installed:
 ```shell
-npm install leaflet-particle-dispersion --save
+npm install leaflet-particles --save
 ```
 
 ## dependencies
@@ -29,8 +29,8 @@ This plugin has external dependencies:
 - [leaflet-heatbin](https://github.com/danwild/leaflet-heatbin)
 
 To use this plugin, you either need to:
- - load these dependencies yourself (prior to loading `leaflet-particle-dispersion`); or
- - use the standalone version with dependencies bundled, in `dist/leaflet-particle-dispersion-standalone.js`
+ - load these dependencies yourself (prior to loading `leaflet-particles`); or
+ - use the standalone version with dependencies bundled, in `dist/leaflet-particles-standalone.js`
 
 
 ## use and options
@@ -38,7 +38,7 @@ To use this plugin, you either need to:
 ```javascript
 // create a particle layer
 const mode = 'FINAL';
-const particleLayer = L.particleDispersionLayer({
+const particleLayer = L.particleLayer({
 
   // an array of keyframes, default: null
   data: data,
@@ -139,6 +139,6 @@ const data = {
 ## License
 MIT License (MIT)
 
-[npm-image]: https://badge.fury.io/js/leaflet-particle-dispersion.svg
-[npm-url]: https://www.npmjs.com/package/leaflet-particle-dispersion
-[npm-downloads-image]: https://img.shields.io/npm/dt/leaflet-particle-dispersion.svg
+[npm-image]: https://badge.fury.io/js/leaflet-particles.svg
+[npm-url]: https://www.npmjs.com/package/leaflet-particles
+[npm-downloads-image]: https://img.shields.io/npm/dt/leaflet-particles.svg

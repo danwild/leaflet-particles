@@ -1,8 +1,8 @@
 {
-	"name": "leaflet-particle-dispersion",
-	"version": "0.3.6",
+	"name": "leaflet-particles",
+	"version": "0.0.1",
 	"description": "Visualise dispersion of particles on a leaflet map.",
-	"main": "dist/leaflet-particle-dispersion.js",
+	"main": "dist/leaflet-particles.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
@@ -18,12 +18,12 @@
 	],
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/danwild/leaflet-particle-dispersion.git"
+		"url": "git+https://github.com/danwild/leaflet-particles.git"
 	},
 	"bugs": {
-		"url": "https://github.com/danwild/leaflet-particle-dispersion/issues"
+		"url": "https://github.com/danwild/leaflet-particles/issues"
 	},
-	"homepage": "https://github.com/danwild/leaflet-particle-dispersion#readme",
+	"homepage": "https://github.com/danwild/leaflet-particles#readme",
 	"author": "danwild@y7mail.com",
 	"license": "MIT",
 	"dependencies": {
@@ -35,8 +35,6 @@
 		"gulp": "^4.0.0",
 		"gulp-babel": "^6.1.2",
 		"gulp-concat": "^2.6.0",
-		"gulp-concat-css": "^2.3.0",
-		"gulp-cssnano": "^2.1.2",
 		"gulp-rename": "^1.2.2",
 		"gulp-uglify": "^1.5.4",
 		"rollup": "^0.63.4",

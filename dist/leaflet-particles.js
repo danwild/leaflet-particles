@@ -1,13 +1,13 @@
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('chroma-js'), require('leaflet-heatbin')) :
 	typeof define === 'function' && define.amd ? define(['chroma-js', 'leaflet-heatbin'], factory) :
-	(global['leaflet-particle-dispersion'] = factory(global.chroma,global.leafletHeatbin));
+	(global['leaflet-particles'] = factory(global.chroma,global.leafletHeatbin));
 }(this, (function (chroma,leafletHeatbin) { 'use strict';
 
 	chroma = chroma && chroma.hasOwnProperty('default') ? chroma['default'] : chroma;
 	leafletHeatbin = leafletHeatbin && leafletHeatbin.hasOwnProperty('default') ? leafletHeatbin['default'] : leafletHeatbin;
 
-	const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
+	const ParticlesLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 		// misc
 		_particleLayer: null,
@@ -477,13 +477,13 @@
 
 	});
 
-	L.particleDispersionLayer = function (options) {
-		return new ParticleDispersionLayer(options);
+	L.particlesLayer = function (options) {
+		return new ParticlesLayer(options);
 	};
 
-	var L_ParticleDispersionLayer = L.particleDispersionLayer;
+	var L_ParticlesLayer = L.particlesLayer;
 
-	return L_ParticleDispersionLayer;
+	return L_ParticlesLayer;
 
 })));
-//# sourceMappingURL=leaflet-particle-dispersion.js.map
+//# sourceMappingURL=leaflet-particles.js.map

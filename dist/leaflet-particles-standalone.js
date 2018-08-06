@@ -1,7 +1,7 @@
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 	typeof define === 'function' && define.amd ? define(factory) :
-	(global['leaflet-particle-dispersion'] = factory());
+	(global['leaflet-particles'] = factory());
 }(this, (function () { 'use strict';
 
 	var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
@@ -3875,7 +3875,7 @@
 
 	});
 
-	const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
+	const ParticlesLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 		// misc
 		_particleLayer: null,
@@ -4345,13 +4345,13 @@
 
 	});
 
-	L.particleDispersionLayer = function (options) {
-		return new ParticleDispersionLayer(options);
+	L.particlesLayer = function (options) {
+		return new ParticlesLayer(options);
 	};
 
-	var L_ParticleDispersionLayer = L.particleDispersionLayer;
+	var L_ParticlesLayer = L.particlesLayer;
 
-	return L_ParticleDispersionLayer;
+	return L_ParticlesLayer;
 
 })));
-//# sourceMappingURL=leaflet-particle-dispersion-standalone.js.map
+//# sourceMappingURL=leaflet-particles-standalone.js.map

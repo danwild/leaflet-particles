@@ -3,7 +3,7 @@
 import chroma from 'chroma-js';
 import heatBin from 'leaflet-heatbin';
 
-const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
+const ParticlesLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 	// misc
 	_particleLayer: null,
@@ -468,11 +468,11 @@ const ParticleDispersionLayer = (L.Layer ? L.Layer : L.Class).extend({
 
 });
 
-L.particleDispersionLayer = function(options) {
-	return new ParticleDispersionLayer(options);
+L.particlesLayer = function(options) {
+	return new ParticlesLayer(options);
 };
 
-export default L.particleDispersionLayer;
+export default L.particlesLayer;
 
 
 
