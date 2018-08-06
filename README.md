@@ -38,7 +38,7 @@ To use this plugin, you either need to:
 ```javascript
 // create a particle layer
 const mode = 'FINAL';
-const particleLayer = L.particleLayer({
+const particleLayer = L.particlesLayer({
 
   // an array of keyframes, default: null
   data: data,
